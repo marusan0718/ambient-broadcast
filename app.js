@@ -154,3 +154,14 @@ function hexToRgb(hex){
 renderStatus();
 applyBackground();
 tickCountdown();
+// ロック画面（メディアUI）にタイトル/アートワークを渡す
+if ("mediaSession" in navigator) {
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: "Ambient Tide",
+    artist: "",
+    album: "",
+    artwork: [
+      { src: "cover.png", sizes: "512x512", type: "image/png" }
+    ]
+  });
+}
