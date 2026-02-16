@@ -11,9 +11,7 @@ const playBtn = document.getElementById("playBtn");
 const playIcon = document.getElementById("playIcon");
 const modeLine = document.getElementById("modeLine");
 const detailLine = document.getElementById("detailLine");
-const recipeLine = document.getElementById("recipeLine");
 const countdown = document.getElementById("countdown");
-const regenBtn = document.getElementById("regenBtn");
 
 // ====== UI: チップ選択（保持） ======
 document.querySelectorAll(".chips").forEach(group => {
@@ -32,12 +30,6 @@ document.querySelectorAll(".chips").forEach(group => {
   });
 });
 
-regenBtn?.addEventListener("click", () => {
-  // seedだけ変えて“同条件でも別の生成”
-  state.seed = (state.seed + 2654435761) >>> 0;
-  if (engine) engine.regenerate(getEnv());
-  renderStatus();
-});
 
 // ====== 再生/停止 ======
 playBtn.addEventListener("click", async () => {
