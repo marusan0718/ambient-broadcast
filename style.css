@@ -4,104 +4,65 @@
   --muted:rgba(17,24,39,.55);
   --chip:rgba(17,24,39,.08);
   --chipOn:rgba(17,24,39,.14);
-  --ring:rgba(17,24,39,.18);
 }
 
-html,body{height:100%}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+
 body{
-  margin:0;
-  color:var(--fg);
-  font-family: ui-sans-serif, -apple-system, system-ui, "Hiragino Sans", "Noto Sans JP";
   background:var(--bg);
-  transition: background 60s ease-in-out, color 60s ease-in-out;
+  color:var(--fg);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
+  transition:background .8s ease;
 }
 
 .wrap{
-  min-height:100%;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:18px;
-  padding:28px 18px;
-  position:relative;
-  overflow:hidden;
+  text-align:center;
+  max-width:420px;
+  width:100%;
 }
 
-.wrap::before{
-  content:"";
-  position:absolute;
-  inset:-20%;
-  background: radial-gradient(circle at 50% 30%, rgba(0,0,0,.06), transparent 55%);
-  opacity:.35;
-  transition: opacity 60s ease-in-out;
-  pointer-events:none;
+.title{
+  font-weight:500;
+  margin-bottom:40px;
 }
 
 .play{
-  width:110px;height:110px;
-  border-radius:999px;
-  border:1px solid var(--ring);
-  background: rgba(255,255,255,.55);
-  backdrop-filter: blur(10px);
-  display:flex;align-items:center;justify-content:center;
+  width:100px;
+  height:100px;
+  border-radius:50%;
+  border:1px solid var(--chip);
+  background:transparent;
+  font-size:28px;
   cursor:pointer;
-  user-select:none;
+  margin-bottom:40px;
 }
 
-.icon{ font-size:34px; transform: translateX(2px); }
-
-.play.is-playing{ animation: breathe 5s ease-in-out infinite; }
-
-@keyframes breathe{
-  0%,100%{ transform: scale(1); }
-  50%{ transform: scale(1.03); }
-}
-
-.status{ text-align:center; line-height:1.55; }
-.mode{ font-size:14px; color:var(--fg); }
-.detail{ font-size:12px; color:var(--muted); }
-
-.panel{
-  width:min(520px, 92vw);
+.chips{
   display:flex;
-  flex-direction:column;
-  gap:10px;
+  gap:8px;
+  justify-content:center;
+  margin-bottom:12px;
+  flex-wrap:wrap;
 }
 
-.row{ display:flex; gap:10px; align-items:flex-start; }
-.label{ width:44px; font-size:12px; color:var(--muted); padding-top:6px; }
-
-.chips{ display:flex; flex-wrap:wrap; gap:8px; }
 .chip{
-  border:1px solid transparent;
+  border:none;
+  padding:6px 12px;
   border-radius:999px;
-  padding:6px 10px;
-  background: var(--chip);
-  font-size:12px;
-  color:var(--fg);
+  background:var(--chip);
   cursor:pointer;
-}
-.chip.is-active{
-  background: var(--chipOn);
-  border-color: var(--ring);
+  font-size:12px;
 }
 
-.countdown{
-  position:fixed;
-  right:14px;
-  bottom:14px;
-  font-size:11px;
+.chip.is-active{
+  background:var(--chipOn);
+}
+
+.status{
+  margin-top:24px;
+  font-size:13px;
   color:var(--muted);
 }
-.ghost{
-  margin-top:8px;
-  border:1px solid var(--ring);
-  background: transparent;
-  color: var(--muted);
-  font-size:12px;
-  padding:6px 10px;
-  border-radius:999px;
-  cursor:pointer;
-}
-.recipe{ user-select: text; }
