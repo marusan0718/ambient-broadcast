@@ -8,40 +8,49 @@
 </head>
 <body>
   <main class="wrap">
-    <h1 class="title">Ambient Tide</h1>
+    <header class="top">
+      <h1 class="title">Ambient Tide</h1>
+      <div id="subtitle" class="subtitle">自然に寄り添う生成プレビュー</div>
+    </header>
 
-    <button id="playBtn" class="play">
-      <span id="playIcon">▶︎</span>
+    <button id="playBtn" class="play" type="button" aria-label="play">
+      <span id="playIcon" class="playIcon">▶︎</span>
     </button>
 
-    <div class="chips" data-key="time">
-      <button class="chip is-active" data-val="auto">Auto</button>
-      <button class="chip" data-val="morning">朝</button>
-      <button class="chip" data-val="day">昼</button>
-      <button class="chip" data-val="night">夜</button>
-    </div>
+    <section class="panel">
+      <div class="chips" data-key="time">
+        <button class="chip is-active" data-val="auto" type="button">Auto</button>
+        <button class="chip" data-val="morning" type="button">朝</button>
+        <button class="chip" data-val="day" type="button">昼</button>
+        <button class="chip" data-val="evening" type="button">夕</button>
+        <button class="chip" data-val="night" type="button">夜</button>
+        <button class="chip" data-val="late" type="button">深夜</button>
+      </div>
 
-    <div class="chips" data-key="weather">
-      <button class="chip is-active" data-val="auto">Auto</button>
-      <button class="chip" data-val="clear">晴れ</button>
-      <button class="chip" data-val="cloudy">くもり</button>
-      <button class="chip" data-val="rain">雨</button>
-    </div>
+      <div class="chips" data-key="weather">
+        <button class="chip is-active" data-val="auto" type="button">Auto</button>
+        <button class="chip" data-val="clear" type="button">晴れ</button>
+        <button class="chip" data-val="cloudy" type="button">くもり</button>
+        <button class="chip" data-val="rain" type="button">雨</button>
+      </div>
 
-    <div class="chips" data-key="season">
-      <button class="chip is-active" data-val="auto">Auto</button>
-      <button class="chip" data-val="spring">春</button>
-      <button class="chip" data-val="summer">夏</button>
-      <button class="chip" data-val="autumn">秋</button>
-      <button class="chip" data-val="winter">冬</button>
-    </div>
+      <div class="chips" data-key="season">
+        <button class="chip is-active" data-val="auto" type="button">Auto</button>
+        <button class="chip" data-val="spring" type="button">春</button>
+        <button class="chip" data-val="summer" type="button">夏</button>
+        <button class="chip" data-val="autumn" type="button">秋</button>
+        <button class="chip" data-val="winter" type="button">冬</button>
+      </div>
+    </section>
 
-    <div class="status">
-      <div id="modeLine">Auto</div>
-      <div id="countdown">次の更新まで 05:00</div>
-    </div>
+    <section class="status">
+      <div id="modeLine" class="mode">Auto: -</div>
+      <div id="countdown" class="countdown">次の更新まで 05:00</div>
+      <div class="hint">※ 再生はボタン操作が必要（iPhone対策）</div>
+    </section>
   </main>
 
-  <script src="app.js"></script>
+  <!-- キャッシュ対策：数字を上げると確実に更新される -->
+  <script src="app.js?v=3"></script>
 </body>
 </html>
