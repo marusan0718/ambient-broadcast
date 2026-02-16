@@ -1,64 +1,478 @@
-function rebuildLoops(){
-  disposeLoops();
-  const r = applyParams();
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ambient Weather (Triads + Sparkle Delay)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/15.3.5/Tone.js"></script>
+</head>
 
-  // ====== ランダム・ハーモナイズ（I/IV/V のメジャートライアドのみ） ======
-  // Keyごとの安全な候補（根音だけランダムに選ぶ）
-  const triadChoicesByKey = {
-    "C":  ["C4","F4","G4"],
-    "D":  ["D4","G4","A4"],
-    "Eb": ["Eb4","Ab4","Bb4"],
-    "A":  ["A3","D4","E4"]
-  };
-  const choices = triadChoicesByKey[r.key] || triadChoicesByKey["C"];
+<body class="min-h-screen transition-colors duration-700 bg-gradient-to-b from-slate-100 to-slate-300">
+  <main class="min-h-screen flex items-center justify-center p-6">
+    <div class="w-full max-w-xl rounded-3xl bg-white/70 backdrop-blur shadow-xl border border-white/60 p-6">
+      <header class="flex items-start justify-between gap-4">
+        <div>
+          <h1 class="text-xl font-semibold tracking-tight">Ambient Weather</h1>
+          <p class="text-sm text-slate-600">季節・時間・天気・風に同期（ランダム長三和音 + きらめきDelay）</p>
+          <p id="countdown" class="mt-2 text-xs text-slate-500">次の更新まで —</p>
+        </div>
 
-  const triadInterval = clamp(windToIntervalSeconds(lastWeather.wind) * 2.0, 0.9, 3.2);
+        <div class="flex gap-2">
+          <button id="btnRefresh" class="px-3 py-2 rounded-xl text-sm bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.99]">
+            更新
+          </button>
+          <button id="btnToggle" class="px-3 py-2 rounded-xl text-sm bg-emerald-600 text-white hover:bg-emerald-500 active:scale-[0.99]">
+            Start
+          </button>
+        </div>
+      </header>
 
-  let lastRoot = null;
-  triadLoop = new Tone.Loop((time) => {
-    // 直前と同じ和音が続かないようにする
-    let root = choices[Math.floor(Math.random() * choices.length)];
-    if (root === lastRoot) {
-      root = choices[Math.floor(Math.random() * choices.length)];
-    }
-    lastRoot = root;
+      <section class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="rounded-2xl bg-white/70 border border-slate-200 p-4">
+          <div class="text-xs text-slate-500">天気</div>
+          <div id="weatherText" class="mt-1 text-lg font-medium">—</div>
+          <div class="mt-2 text-xs text-slate-500">天気コード: <span id="weatherCode">—</span></div>
+        </div>
 
-    pad.triggerAttackRelease(triad(root), 0.60, time, 0.70);
-  }, triadInterval).start(0);
+        <div class="rounded-2xl bg-white/70 border border-slate-200 p-4">
+          <div class="text-xs text-slate-500">風速</div>
+          <div class="mt-1 text-lg font-medium"><span id="windSpeed">—</span> m/s</div>
+          <div class="mt-2 text-xs text-slate-500">発音密度(目安): <span id="density">—</span></div>
+        </div>
 
-  // ====== きらめき：単音 + Delay（環境で少し変化） ======
-  const sparkleInterval = clamp(windToIntervalSeconds(lastWeather.wind) * 0.95, 0.22, 0.95);
-  const scale = sparkleScale(r.key, r.weatherCat, r.time);
+        <div class="sm:col-span-2 rounded-2xl bg-white/70 border border-slate-200 p-4">
+          <div class="text-xs text-slate-500">ステータス</div>
+          <div id="status" class="mt-1 text-sm text-slate-700">待機中（Startで音が鳴る）</div>
 
-  // Delayの雰囲気を環境で調整（やりすぎない）
-  if (sparkleDelay){
-    // 夜は少し長め、雨は少しウェット多め
-    const night = (r.time === "night" || r.time === "late");
-    const rain = (r.weatherCat === "rain");
+          <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <div class="text-xs text-slate-500 mb-1">季節</div>
+              <select id="seasonSel" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                <option value="auto">Auto</option>
+                <option value="spring">春</option>
+                <option value="summer">夏</option>
+                <option value="autumn">秋</option>
+                <option value="winter">冬</option>
+              </select>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500 mb-1">時間</div>
+              <select id="timeSel" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                <option value="auto">Auto</option>
+                <option value="morning">朝</option>
+                <option value="day">昼</option>
+                <option value="evening">夕</option>
+                <option value="night">夜</option>
+                <option value="late">深夜</option>
+              </select>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500 mb-1">天気</div>
+              <select id="weatherSel" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                <option value="auto">Auto</option>
+                <option value="clear">晴れ</option>
+                <option value="rain">雨</option>
+                <option value="other">その他</option>
+              </select>
+            </div>
+          </div>
 
-    sparkleDelay.delayTime.value = night ? Tone.Time("8n").toSeconds() : Tone.Time("16n").toSeconds();
-    sparkleDelay.feedback.value  = rain ? 0.26 : 0.20;
-    sparkleDelay.wet.value       = night ? 0.22 : (rain ? 0.20 : 0.16);
+          <details class="mt-4">
+            <summary class="cursor-pointer text-sm text-slate-700 select-none">位置情報が使えない場合（手入力）</summary>
+            <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input id="lat" class="rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="lat (例: 35.681)" />
+              <input id="lon" class="rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="lon (例: 139.767)" />
+              <button id="btnUseManual" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800">
+                この座標で取得
+              </button>
+            </div>
+          </details>
+
+          <div class="mt-4 text-xs text-slate-500">
+            ※ “怖さゼロ”固定：メジャー/メジャーペンタのみ。低音を避けて、自然に馴染む音に。
+          </div>
+        </div>
+      </section>
+
+      <footer class="mt-5 text-xs text-slate-500">
+        Open-Meteo（キー不要）で現在天気を取得。Tone.jsでリアルタイム生成。5分ごと自動更新。
+      </footer>
+    </div>
+  </main>
+
+<script>
+  // =========================
+  // Weather (Open-Meteo)
+  // =========================
+  const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
+  const AUTO_UPDATE_MS = 5 * 60 * 1000;
+  let nextUpdateAt = Date.now() + AUTO_UPDATE_MS;
+
+  function describeWeather(code) {
+    if (code === 0) return "快晴";
+    if ([1,2].includes(code)) return "晴れ/薄曇り";
+    if (code === 3) return "くもり";
+    if ([45,48].includes(code)) return "霧";
+    if ([51,53,55,56,57].includes(code)) return "霧雨";
+    if ([61,63,65,66,67].includes(code)) return "雨";
+    if ([71,73,75,77].includes(code)) return "雪";
+    if ([80,81,82].includes(code)) return "にわか雨";
+    if ([95,96,99].includes(code)) return "雷雨";
+    return "不明";
   }
 
-  sparkleLoop = new Tone.Loop((time) => {
-    let p = 0.75;
-    if (r.weatherCat === "rain") p = 0.58;
-    if (r.time === "late") p = 0.45;
-    if (r.time === "night") p = Math.min(p, 0.55);
-    if (r.weatherCat === "clear" && (r.time === "day" || r.time === "morning")) p = 0.85;
+  function weatherCategoryFromCode(code) {
+    if (code === 0 || [1,2].includes(code)) return "clear";
+    if ([61,63,65,66,67,80,81,82,51,53,55,56,57,95,96,99].includes(code)) return "rain";
+    return "other";
+  }
 
-    if (Math.random() < p){
-      const note = scale[Math.floor(Math.random() * scale.length)];
+  async function fetchWeatherByCoords(lat, lon) {
+    const url = new URL(OPEN_METEO_URL);
+    url.searchParams.set("latitude", lat);
+    url.searchParams.set("longitude", lon);
+    url.searchParams.set("current", "weather_code,wind_speed_10m");
+    url.searchParams.set("timezone", "auto");
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error("天気取得に失敗しました");
+    const data = await res.json();
+    const code = data?.current?.weather_code;
+    const wind = data?.current?.wind_speed_10m;
+    if (typeof code !== "number" || typeof wind !== "number") throw new Error("天気データ形式が想定と違います");
+    return { code, wind };
+  }
 
-      if (Math.random() < 0.16){
-        const note2 = scale[Math.floor(Math.random() * scale.length)];
-        const dur = 0.09;
-        sparkle.triggerAttackRelease(note, dur, time, 0.45);
-        sparkle.triggerAttackRelease(note2, dur, time + 0.001, 0.35);
-      } else {
-        sparkle.triggerAttackRelease(note, 0.09, time, 0.45);
-      }
+  function getCurrentPosition() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error("このブラウザは位置情報に対応していません"));
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 60_000,
+      });
+    });
+  }
+
+  // =========================
+  // Env helpers
+  // =========================
+  function autoTimeBlock(){
+    const h = new Date().getHours();
+    if (h >= 5 && h < 10) return "morning";
+    if (h >= 10 && h < 16) return "day";
+    if (h >= 16 && h < 19) return "evening";
+    if (h >= 19 && h < 24) return "night";
+    return "late";
+  }
+
+  function autoSeason(){
+    const m = new Date().getMonth() + 1;
+    if (m >= 3 && m <= 5) return "spring";
+    if (m >= 6 && m <= 8) return "summer";
+    if (m >= 9 && m <= 11) return "autumn";
+    return "winter";
+  }
+
+  function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+  function setStatus(msg) { document.getElementById("status").textContent = msg; }
+
+  function applyBackground(cat, time){
+    document.body.classList.remove(
+      "bg-gradient-to-b",
+      "from-amber-50","to-amber-200",
+      "from-slate-100","to-slate-300",
+      "from-slate-900","to-slate-950"
+    );
+    document.body.classList.add("bg-gradient-to-b");
+    const isNight = (time === "night" || time === "late");
+    if (cat === "clear" && !isNight) document.body.classList.add("from-amber-50","to-amber-200");
+    else if (cat === "rain" || isNight) document.body.classList.add("from-slate-900","to-slate-950");
+    else document.body.classList.add("from-slate-100","to-slate-300");
+  }
+
+  function windToIntervalSeconds(wind){
+    const w = clamp(wind, 0, 15);
+    const t = 1.2 - (w/15)*1.02;
+    return clamp(t, 0.18, 1.2);
+  }
+
+  function getEnv(lastWeather){
+    const seasonSel = document.getElementById("seasonSel").value;
+    const timeSel   = document.getElementById("timeSel").value;
+    const weatherSel= document.getElementById("weatherSel").value;
+
+    const season = (seasonSel === "auto") ? autoSeason() : seasonSel;
+    const time   = (timeSel === "auto") ? autoTimeBlock() : timeSel;
+    const weatherCat = (weatherSel === "auto") ? weatherCategoryFromCode(lastWeather.code) : weatherSel;
+
+    return { season, time, weatherCat };
+  }
+
+  // =========================
+  // Music (Tone.js): Random Major Triads + Sparkle Delay
+  // =========================
+  let isRunning = false;
+
+  let reverb, filter, pad, sparkle, sparkleDelay;
+  let triadLoop, sparkleLoop;
+  let lastWeather = { code: 0, wind: 0 };
+
+  function ensureAudioGraph(){
+    if (pad) return;
+
+    reverb = new Tone.Reverb({ decay: 4.8, wet: 0.25 }).toDestination();
+    filter = new Tone.Filter({ type: "lowpass", frequency: 1600, rolloff: -12 }).connect(reverb);
+
+    // 土台：長三和音パッド
+    pad = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.45, decay: 0.2, sustain: 0.65, release: 2.4 }
+    }).connect(filter);
+    pad.volume.value = -14;
+
+    // きらめき用 Delay（sparkle専用）
+    sparkleDelay = new Tone.FeedbackDelay({
+      delayTime: "16n",
+      feedback: 0.22,
+      wet: 0.18
+    }).connect(filter);
+
+    // 上物：単音キラメキ（Delayへ）
+    sparkle = new Tone.Synth({
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.01, decay: 0.12, sustain: 0.0, release: 1.0 }
+    }).connect(sparkleDelay);
+    sparkle.volume.value = -12;
+  }
+
+  function triad(rootNote){
+    const r = Tone.Frequency(rootNote);
+    return [ r.toNote(), r.transpose(4).toNote(), r.transpose(7).toNote() ];
+  }
+
+  function keyFromSeason(season){
+    if (season === "spring") return "C";
+    if (season === "summer") return "D";
+    if (season === "autumn") return "Eb";
+    if (season === "winter") return "A";
+    return "C";
+  }
+
+  function sparkleScale(key, weatherCat, time){
+    const major = {
+      "C":  ["C5","D5","E5","F5","G5","A5","B5","C6"],
+      "D":  ["D5","E5","F#5","G5","A5","B5","C#6","D6"],
+      "Eb": ["Eb5","F5","G5","Ab5","Bb5","C6","D6","Eb6"],
+      "A":  ["A4","B4","C#5","D5","E5","F#5","G#5","A5"],
+    };
+    const pent = {
+      "C":  ["C5","D5","E5","G5","A5","C6"],
+      "D":  ["D5","E5","F#5","A5","B5","D6"],
+      "Eb": ["Eb5","F5","G5","Bb5","C6","Eb6"],
+      "A":  ["A4","B4","C#5","E5","F#5","A5"],
+    };
+
+    const usePent = (weatherCat === "rain") || (time === "night" || time === "late");
+    return usePent ? (pent[key] || pent["C"]) : (major[key] || major["C"]);
+  }
+
+  function applyParams(){
+    const env = getEnv(lastWeather);
+    const key = keyFromSeason(env.season);
+
+    // Tempo（時間）
+    let bpm = 76;
+    if (env.time === "morning") bpm = 84;
+    if (env.time === "day") bpm = 88;
+    if (env.time === "evening") bpm = 78;
+    if (env.time === "night") bpm = 70;
+    if (env.time === "late") bpm = 64;
+    Tone.Transport.bpm.value = bpm;
+
+    // Brightness & Reverb（天気＋時間）
+    let cutoff = 1600;
+    let wet = 0.25;
+    if (env.weatherCat === "clear") { cutoff = 2100; wet = 0.20; }
+    if (env.weatherCat === "other") { cutoff = 1600; wet = 0.27; }
+    if (env.weatherCat === "rain")  { cutoff = 1100; wet = 0.34; }
+
+    if (env.time === "night" || env.time === "late") {
+      cutoff -= 150;
+      wet += 0.03;
     }
-  }, sparkleInterval).start(0);
-}
+
+    cutoff = clamp(cutoff, 900, 2600);
+    wet = clamp(wet, 0.18, 0.40);
+
+    filter.frequency.value = cutoff;
+    reverb.wet.value = wet;
+
+    // Delayを環境で調整（やりすぎない）
+    if (sparkleDelay){
+      const night = (env.time === "night" || env.time === "late");
+      const rain  = (env.weatherCat === "rain");
+      sparkleDelay.set({
+        delayTime: night ? "8n" : "16n",
+        feedback:  rain ? 0.26 : 0.20,
+        wet:       night ? 0.22 : (rain ? 0.20 : 0.16),
+      });
+    }
+
+    applyBackground(env.weatherCat, env.time);
+    setStatus(`再生中：${env.season}/${env.time}/${env.weatherCat}（Key:${key} BPM:${bpm}）`);
+
+    return { ...env, key };
+  }
+
+  function rebuildLoops(){
+    if (triadLoop) { triadLoop.dispose(); triadLoop = null; }
+    if (sparkleLoop) { sparkleLoop.dispose(); sparkleLoop = null; }
+
+    const r = applyParams();
+
+    // ====== ランダム・ハーモナイズ（I/IV/V メジャートライアド） ======
+    const triadChoicesByKey = {
+      "C":  ["C4","F4","G4"],
+      "D":  ["D4","G4","A4"],
+      "Eb": ["Eb4","Ab4","Bb4"],
+      "A":  ["A3","D4","E4"]
+    };
+    const choices = triadChoicesByKey[r.key] || triadChoicesByKey["C"];
+    const triadInterval = clamp(windToIntervalSeconds(lastWeather.wind) * 2.0, 0.9, 3.2);
+
+    let lastRoot = null;
+    triadLoop = new Tone.Loop((time) => {
+      let root = choices[Math.floor(Math.random() * choices.length)];
+      if (root === lastRoot) root = choices[Math.floor(Math.random() * choices.length)];
+      lastRoot = root;
+      pad.triggerAttackRelease(triad(root), 0.60, time, 0.70);
+    }, triadInterval).start(0);
+
+    // ====== きらめき：単音 + Delay ======
+    const sparkleInterval = clamp(windToIntervalSeconds(lastWeather.wind) * 0.95, 0.22, 0.95);
+    const scale = sparkleScale(r.key, r.weatherCat, r.time);
+
+    sparkleLoop = new Tone.Loop((time) => {
+      let p = 0.75;
+      if (r.weatherCat === "rain") p = 0.58;
+      if (r.time === "late") p = 0.45;
+      if (r.time === "night") p = Math.min(p, 0.55);
+      if (r.weatherCat === "clear" && (r.time === "day" || r.time === "morning")) p = 0.85;
+
+      if (Math.random() < p){
+        const note = scale[Math.floor(Math.random() * scale.length)];
+        if (Math.random() < 0.16){
+          const note2 = scale[Math.floor(Math.random() * scale.length)];
+          const dur = 0.09;
+          sparkle.triggerAttackRelease(note, dur, time, 0.45);
+          sparkle.triggerAttackRelease(note2, dur, time + 0.001, 0.35);
+        } else {
+          sparkle.triggerAttackRelease(note, 0.09, time, 0.45);
+        }
+      }
+    }, sparkleInterval).start(0);
+  }
+
+  function updateUI({ code, wind }){
+    const cat = weatherCategoryFromCode(code);
+    document.getElementById("weatherText").textContent = describeWeather(code);
+    document.getElementById("weatherCode").textContent = String(code);
+    document.getElementById("windSpeed").textContent = wind.toFixed(1);
+    const interval = windToIntervalSeconds(wind);
+    document.getElementById("density").textContent = (1 / interval).toFixed(1) + " notes/sec";
+    applyBackground(cat, autoTimeBlock());
+  }
+
+  async function start(){
+    ensureAudioGraph();
+    await Tone.start(); // iOS対策
+    Tone.Transport.start();
+    rebuildLoops();
+
+    isRunning = true;
+    document.getElementById("btnToggle").textContent = "Stop";
+    document.getElementById("btnToggle").classList.remove("bg-emerald-600","hover:bg-emerald-500");
+    document.getElementById("btnToggle").classList.add("bg-rose-600","hover:bg-rose-500");
+  }
+
+  function stop(){
+    isRunning = false;
+    if (triadLoop) { triadLoop.stop(); triadLoop.dispose(); triadLoop = null; }
+    if (sparkleLoop) { sparkleLoop.stop(); sparkleLoop.dispose(); sparkleLoop = null; }
+    Tone.Transport.stop();
+
+    document.getElementById("btnToggle").textContent = "Start";
+    document.getElementById("btnToggle").classList.remove("bg-rose-600","hover:bg-rose-500");
+    document.getElementById("btnToggle").classList.add("bg-emerald-600","hover:bg-emerald-500");
+    setStatus("停止中（Startで再開）");
+  }
+
+  async function refreshWeather(auto=true){
+    try{
+      setStatus("天気取得中…");
+      let lat, lon;
+
+      if (auto){
+        const pos = await getCurrentPosition();
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+      } else {
+        lat = parseFloat(document.getElementById("lat").value);
+        lon = parseFloat(document.getElementById("lon").value);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error("lat/lon を数値で入力してね");
+      }
+
+      const { code, wind } = await fetchWeatherByCoords(lat, lon);
+      lastWeather = { code, wind };
+      updateUI(lastWeather);
+
+      nextUpdateAt = Date.now() + AUTO_UPDATE_MS;
+
+      if (isRunning){
+        rebuildLoops();
+        setStatus("再生中（天気/風/選択を反映して更新）");
+      } else {
+        setStatus("取得OK（Startで音が鳴る）");
+      }
+    } catch(e){
+      console.error(e);
+      setStatus(`エラー: ${e.message}`);
+    }
+  }
+
+  function tick(){
+    const now = Date.now();
+    const remain = Math.max(0, nextUpdateAt - now);
+    const mm = String(Math.floor(remain/60000)).padStart(2,"0");
+    const ss = String(Math.floor((remain%60000)/1000)).padStart(2,"0");
+    document.getElementById("countdown").textContent = `次の更新まで ${mm}:${ss}`;
+    if (remain === 0) refreshWeather(true);
+    requestAnimationFrame(tick);
+  }
+
+  // =========================
+  // UI Events
+  // =========================
+  document.getElementById("btnToggle").addEventListener("click", async () => {
+    if (!isRunning) await start();
+    else stop();
+  });
+
+  document.getElementById("btnRefresh").addEventListener("click", () => refreshWeather(true));
+  document.getElementById("btnUseManual").addEventListener("click", () => refreshWeather(false));
+
+  ["seasonSel","timeSel","weatherSel"].forEach(id => {
+    document.getElementById(id).addEventListener("change", () => {
+      if (isRunning) rebuildLoops();
+      else applyParams();
+    });
+  });
+
+  // init
+  applyBackground("other", autoTimeBlock());
+  refreshWeather(true);
+  tick();
+</script>
+</body>
+</html>
