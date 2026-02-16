@@ -33,7 +33,7 @@
               </div>
               <h1 class="mt-3 text-2xl font-semibold tracking-tight">Ambient Music</h1>
 
-              <!-- ✅ 指示： 「いまこの」から段落を分ける -->
+              <!-- 「いまこの」から段落分け -->
               <p class="mt-1 text-sm text-slate-600">
                 季節、天気、風のゆらぎ。<br class="hidden sm:block">
               </p>
@@ -43,7 +43,7 @@
             </div>
 
             <div class="text-right">
-              <!-- ✅ 指示：自動更新を小さく、スマホでも1行 -->
+              <!-- 自動更新を小さく＆1行 -->
               <div class="text-[10px] sm:text-xs text-slate-500 whitespace-nowrap">自動更新</div>
               <div id="countdown" class="mt-1 text-sm font-medium text-slate-700 tabular-nums">—</div>
             </div>
@@ -62,26 +62,26 @@
               </div>
               <div class="text-left">
                 <div id="btnLabel" class="text-xl font-semibold">Start</div>
-                <!-- ✅ 指示：AirPlay文言を削除 -->
+                <!-- AirPlay文言削除 -->
                 <div id="btnSub" class="text-xs text-white/75">タップで再生</div>
               </div>
             </div>
           </button>
 
-          <!-- ✅ 指示：状態表示は設定内へ → ここから削除 -->
+          <!-- 状態は設定へ移動（ここには出さない） -->
 
           <!-- Minimal metrics -->
           <div class="mt-4 grid grid-cols-2 gap-3">
             <div class="rounded-2xl bg-white/75 border border-slate-200 p-4">
               <div class="text-xs text-slate-500">天気</div>
               <div id="weatherText" class="mt-1 text-base font-medium">—</div>
-              <!-- ✅ 指示：天気の下のコードを非表示 -->
+              <!-- 天気コードを非表示 -->
               <div class="hidden mt-2 text-[11px] text-slate-500">コード: <span id="weatherCode">—</span></div>
             </div>
             <div class="rounded-2xl bg-white/75 border border-slate-200 p-4">
               <div class="text-xs text-slate-500">風速</div>
               <div class="mt-1 text-base font-medium"><span id="windSpeed">—</span> m/s</div>
-              <!-- ✅ 指示：風速の下の密度を非表示 -->
+              <!-- 密度を非表示 -->
               <div class="hidden mt-2 text-[11px] text-slate-500">密度: <span id="density">—</span></div>
             </div>
           </div>
@@ -95,7 +95,6 @@
               更新
             </button>
 
-            <!-- Settings trigger -->
             <details id="settingsDetails" class="group">
               <summary
                 class="list-none cursor-pointer select-none px-4 py-2 rounded-2xl text-sm
@@ -109,7 +108,7 @@
         </div>
       </div>
 
-      <!-- ✅ 指示：外枠のAirPlay文言（コントロールセンター含む）を削除 -->
+      <!-- 外枠AirPlay文言は削除 -->
     </div>
   </main>
 
@@ -164,7 +163,7 @@
             </div>
           </div>
 
-          <!-- ✅ 指示：状態を設定の中へ -->
+          <!-- 状態を設定内へ -->
           <div class="mt-4">
             <div class="text-xs text-slate-500 mb-1">状態</div>
             <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
@@ -172,8 +171,8 @@
             </div>
           </div>
 
-          <!-- ✅ 指示：設定内の「いま更新」を消す → ボタン行ごと削除 -->
-          <!-- ✅ 指示：位置情報が使えない場合もいらない → 手入力ブロック削除 -->
+          <!-- 設定内の「いま更新」削除 -->
+          <!-- 位置情報が使えない場合（手入力）削除 -->
 
           <div class="mt-4 text-[11px] text-slate-500">
             ロック画面表示：再生開始後にOS側へ情報を渡します（完全保証ではないよ）
@@ -500,6 +499,9 @@
   }
 
   function rebuildLoops(){
+    // ★重要：残ってるscheduleOnceを掃除（これで「Stopしても次が鳴る」を潰す）
+    Tone.Transport.cancel(0);
+
     if (sparkleLoop) { sparkleLoop.dispose(); sparkleLoop = null; }
     if (birdLoop) { birdLoop.dispose(); birdLoop = null; }
     clearHarmonyScheduler();
@@ -606,8 +608,10 @@
     updatePlaybackState();
   }
 
+  // ★Stopしても止まらない対策：開始時に必ずミュート解除
   async function start(){
     ensureAudioGraph();
+    Tone.Destination.mute = false; // ←重要
     await Tone.start();
     Tone.Transport.start();
     rebuildLoops();
@@ -615,25 +619,30 @@
     setButtonState();
   }
 
+  // ★Stopしても止まらない対策：即ミュート + 全スケジュール削除
   function stop(){
     isRunning = false;
+
+    // 余韻ごと一瞬で無音にする
+    Tone.Destination.mute = true;
+
     clearHarmonyScheduler();
     if (sparkleLoop) { sparkleLoop.stop(); sparkleLoop.dispose(); sparkleLoop = null; }
-    if (birdLoop) { birdLoop.stop(); birdLoop.dispose(); birdLoop = null; }
+    if (birdLoop)    { birdLoop.stop(); birdLoop.dispose(); birdLoop = null; }
+
     Tone.Transport.stop();
+    Tone.Transport.cancel(0); // ←重要（残ったscheduleOnceを根こそぎ）
+
     setStatus("停止中（Startで再開）");
     setButtonState();
   }
 
-  async function refreshWeather(auto=true){
+  async function refreshWeather(){
     try{
       setStatus("天気取得中…");
-      let lat, lon;
-
-      // ✅ 指示：手入力は削除したので常に自動
       const pos = await getCurrentPosition();
-      lat = pos.coords.latitude;
-      lon = pos.coords.longitude;
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
 
       const { code, wind } = await fetchWeatherByCoords(lat, lon);
       lastWeather = { code, wind };
@@ -659,7 +668,7 @@
     const mm = String(Math.floor(remain/60000)).padStart(2,"0");
     const ss = String(Math.floor((remain%60000)/1000)).padStart(2,"0");
     document.getElementById("countdown").textContent = `${mm}:${ss}`;
-    if (remain === 0) refreshWeather(true);
+    if (remain === 0) refreshWeather();
     requestAnimationFrame(tick);
   }
 
@@ -700,7 +709,7 @@
     if (!isRunning) await start();
     else stop();
   });
-  document.getElementById("btnRefresh").addEventListener("click", () => refreshWeather(true));
+  document.getElementById("btnRefresh").addEventListener("click", () => refreshWeather());
 
   ["seasonSel","timeSel","weatherSel"].forEach(id => {
     document.getElementById(id).addEventListener("change", () => {
@@ -712,7 +721,7 @@
   // init
   setButtonState();
   applyWhiteByTime(autoTimeBlock());
-  refreshWeather(true);
+  refreshWeather();
   tick();
 </script>
 </body>
