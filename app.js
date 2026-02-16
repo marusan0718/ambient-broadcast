@@ -1,9 +1,9 @@
 /**
- * Ambient Tide — WebAudio 生成プレビュー（怖くない旋律・音量強め）
- * - チップ（時間/天気/季節）で雰囲気が変化
- * - 5分ごとに seed 更新 → 同条件でも少し違う
- * - 怖さ回避：明るいペンタトニック / 低め音域 / 跳躍なし / 柔らかいアタック
- * - 音量アップ：マスター増幅 + コンプレッサ
+ * Ambient Tide — “怖くない + もっと音楽” 版
+ * - 高音の粒/鳥/雨滴は一旦ゼロ（怖さの主因を排除）
+ * - ゆっくりしたコード進行 + 優しいメロディ（階段状モチーフ）
+ * - iOS対策：resume + 極小beep
+ * - 音量：マスター増幅 + コンプレッサ
  */
 
 const UPDATE_INTERVAL_MS = 5 * 60 * 1000;
@@ -75,7 +75,6 @@ function applyBackground(){
   document.documentElement.style.setProperty("--chip", dark ? "rgba(249,250,251,.10)" : "rgba(15,23,42,.08)");
   document.documentElement.style.setProperty("--chipOn", dark ? "rgba(249,250,251,.16)" : "rgba(15,23,42,.14)");
 }
-
 function mix(a,b,t){
   const A = toRgb(a), B = toRgb(b);
   const r = Math.round(A.r + (B.r - A.r)*t);
@@ -125,7 +124,7 @@ playBtn.addEventListener("click", async () => {
     }
   } catch (err) {
     console.error(err);
-    alert("再生できなかった…（iPhoneはボタン操作の直後に音が必要だよ）");
+    alert("再生できなかった…（iPhoneはボタン操作直後に音が必要だよ）");
   }
 });
 
@@ -154,50 +153,11 @@ function tickCountdown(){
   countdown.textContent = `次の更新まで ${fmt(remain)}`;
   requestAnimationFrame(tickCountdown);
 }
-
 function fmt(ms){
   const total = Math.max(0, Math.floor(ms/1000));
   const m = String(Math.floor(total/60)).padStart(2,"0");
   const s = String(total%60).padStart(2,"0");
   return `${m}:${s}`;
-}
-
-// 入力→音パラメータ
-function recipeFromEnv(env){
-  let tempo = 52;
-  if (env.time === "morning") tempo = 55;
-  if (env.time === "day") tempo = 56;
-  if (env.time === "evening") tempo = 52;
-  if (env.time === "night") tempo = 46;
-  if (env.time === "late") tempo = 42;
-
-  let density = 0.28;
-  if (env.time === "day") density += 0.06;
-  if (env.time === "night" || env.time === "late") density -= 0.10;
-
-  let brightness = 0.55;
-  if (env.time === "morning" || env.time === "day") brightness += 0.10;
-  if (env.time === "night" || env.time === "late") brightness -= 0.22;
-
-  let rain = 0.0;
-  if (env.weather === "cloudy") { density -= 0.03; brightness -= 0.03; }
-  if (env.weather === "rain")   { rain = 0.70; density += 0.03; brightness -= 0.08; }
-
-  let birds = 0.0;
-  if (env.time === "morning") birds = 0.45;
-  if (env.time === "day") birds = 0.25;
-  if (env.weather === "rain") birds *= 0.20;
-
-  let warmth = 0.55;
-  if (env.season === "spring") warmth += 0.08;
-  if (env.season === "summer") warmth -= 0.06;
-  if (env.season === "autumn") warmth += 0.04;
-  if (env.season === "winter") warmth -= 0.10;
-
-  density = clamp(density, 0.08, 0.65);
-  brightness = clamp(brightness, 0.15, 0.85);
-
-  return { tempo, density, brightness, rain, birds, warmth };
 }
 
 // PRNG
@@ -214,7 +174,7 @@ function midiToHz(m){ return 440 * Math.pow(2, (m-69)/12); }
 let engine = null;
 
 async function startPlayback(){
-  if (!engine) engine = new AmbientEngine();
+  if (!engine) engine = new MusicEngine();
   await engine.start(getEnv());
 
   if ("mediaSession" in navigator) {
@@ -226,400 +186,274 @@ function stopPlayback(){
   engine?.stop();
 }
 
-class AmbientEngine{
+class MusicEngine{
   constructor(){
     this.ctx = null;
     this.master = null;
-    this.layerA = null;
-    this.layerB = null;
-    this.active = "A";
+    this.comp = null;
+
+    this.bus = null;     // 音楽バス（LPF通す）
+    this.lpf = null;
+
+    this.padGain = null;
+    this.melGain = null;
+
     this.timers = [];
+    this.active = false;
+
+    this._seed = 0;
+    this._rng = null;
+
+    this._bpm = 56;
+    this._stepSec = 60 / this._bpm / 2; // 8分音符相当
+
+    this._progIndex = 0;
+    this._chordOsc = [];
   }
 
   async start(env){
     if (!this.ctx) {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
 
-      // master
       this.master = this.ctx.createGain();
-      this.master.gain.value = 1.30; // ✅ 音量アップ（大きすぎたら 1.15 に）
+      this.master.gain.value = 1.35; // 音量（大きすぎたら 1.15）
+
+      this.comp = this.ctx.createDynamicsCompressor();
+      this.comp.threshold.value = -18;
+      this.comp.knee.value = 24;
+      this.comp.ratio.value = 4;
+      this.comp.attack.value = 0.005;
+      this.comp.release.value = 0.15;
+
+      // バス + LPF（怖い高音を物理的にカット）
+      this.bus = this.ctx.createGain();
+      this.bus.gain.value = 1.0;
+
+      this.lpf = this.ctx.createBiquadFilter();
+      this.lpf.type = "lowpass";
+      this.lpf.frequency.value = 2400; // 高音の刺さりを抑える
+
+      this.padGain = this.ctx.createGain();
+      this.padGain.gain.value = 0.35;
+
+      this.melGain = this.ctx.createGain();
+      this.melGain.gain.value = 0.14;  // メロディは“聞こえるけど邪魔しない”
+
+      // routing
+      this.padGain.connect(this.bus);
+      this.melGain.connect(this.bus);
+      this.bus.connect(this.lpf);
+      this.lpf.connect(this.master);
+      this.master.connect(this.comp);
+      this.comp.connect(this.ctx.destination);
     }
 
     if (this.ctx.state === "suspended") await this.ctx.resume();
-
-    // ✅ コンプレッサ（音量を上げても刺さりにくい）
-    const comp = this.ctx.createDynamicsCompressor();
-    comp.threshold.value = -18;
-    comp.knee.value = 24;
-    comp.ratio.value = 4;
-    comp.attack.value = 0.005;
-    comp.release.value = 0.15;
-
-    // つなぎ直し（毎回二重接続しないように destination直結はしない）
-    // いったん master の出力先を作り直す
-    try { this.master.disconnect(); } catch(_){}
-    this.master.connect(comp);
-    comp.connect(this.ctx.destination);
-
-    // iOS無音スタート回避の極小音
     this._tapBeep();
 
-    // 2レイヤーでクロスフェード
-    this.layerA = this._createLayer();
-    this.layerB = this._createLayer();
-    this.layerA.gain.gain.value = 1.0;
-    this.layerB.gain.gain.value = 0.0;
-
-    this.layerA.gain.connect(this.master);
-    this.layerB.gain.connect(this.master);
-
-    this._renderToLayer(this.layerA, env);
-    this._renderToLayer(this.layerB, env);
-
-    this.active = "A";
-    this._scheduleLoop(env);
+    this.active = true;
+    this.regenerate(env);
   }
 
   stop(){
+    this.active = false;
     this.timers.forEach(t => clearTimeout(t));
     this.timers = [];
+    this._stopChord();
     if (this.ctx) this.ctx.suspend();
   }
 
   update(env){
-    const r = recipeFromEnv(env);
-    const L = (this.active === "A") ? this.layerA : this.layerB;
-    if (!L) return;
+    // 時間帯でテンポ/明るさを少し調整（怖くならない範囲）
+    this._bpm = 56;
+    if (env.time === "morning") this._bpm = 58;
+    if (env.time === "day") this._bpm = 60;
+    if (env.time === "evening") this._bpm = 56;
+    if (env.time === "night") this._bpm = 50;
+    if (env.time === "late") this._bpm = 46;
 
-    const now = this.ctx.currentTime;
+    this._stepSec = 60 / this._bpm / 2;
 
-    const cutoff = 700 + r.brightness * 4200;
-    L.filter.frequency.cancelScheduledValues(now);
-    L.filter.frequency.setTargetAtTime(cutoff, now, 1.2);
-
-    L.rainGain.gain.cancelScheduledValues(now);
-    L.rainGain.gain.setTargetAtTime(r.rain * 0.22, now, 1.6);
-
-    L._birds = r.birds;
-    L._density = r.density;
-    L._tempo = r.tempo;
+    // LPF（夜はさらに暗く）
+    const cutoff = (env.time === "night" || env.time === "late") ? 1800 : 2400;
+    this.lpf.frequency.setTargetAtTime(cutoff, this.ctx.currentTime, 1.0);
   }
 
   regenerate(env){
-    const from = (this.active === "A") ? this.layerA : this.layerB;
-    const to   = (this.active === "A") ? this.layerB : this.layerA;
+    this.update(env);
 
-    this._renderToLayer(to, env);
+    this._seed = env.seed >>> 0;
+    this._rng = mulberry32(this._seed ^ 0xA5A5A5A5);
+    this._progIndex = 0;
 
-    const now = this.ctx.currentTime;
-    from.gain.gain.cancelScheduledValues(now);
-    to.gain.gain.cancelScheduledValues(now);
-
-    from.gain.gain.setTargetAtTime(0.0, now, 12.0);
-    to.gain.gain.setTargetAtTime(1.0, now, 12.0);
-
-    this.active = (this.active === "A") ? "B" : "A";
-    this._scheduleLoop(env);
-  }
-
-  _createLayer(){
-    const g = this.ctx.createGain();
-
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 1800;
-
-    const padGain = this.ctx.createGain();
-    padGain.gain.value = 0.22;
-
-    const bellGain = this.ctx.createGain();
-    bellGain.gain.value = 0.11; // ✅ 粒を少し控えめに
-
-    const melodyGain = this.ctx.createGain();
-    melodyGain.gain.value = 0.06; // ✅ メロディは“気配”くらい
-
-    const rainGain = this.ctx.createGain();
-    rainGain.gain.value = 0.0;
-
-    padGain.connect(filter);
-    bellGain.connect(filter);
-    melodyGain.connect(filter);
-    rainGain.connect(filter);
-    filter.connect(g);
-
-    // rain/noise
-    const noise = this.ctx.createBufferSource();
-    noise.buffer = this._whiteNoiseBuffer(2.0);
-    noise.loop = true;
-
-    const rainFilter = this.ctx.createBiquadFilter();
-    rainFilter.type = "bandpass";
-    rainFilter.frequency.value = 1200;
-    rainFilter.Q.value = 0.8;
-
-    noise.connect(rainFilter);
-    rainFilter.connect(rainGain);
-    noise.start();
-
-    return {
-      gain: g,
-      filter,
-      padGain,
-      bellGain,
-      melodyGain,
-      rainGain,
-      _pads: [],
-      _birds: 0.0,
-      _density: 0.28,
-      _tempo: 52,
-    };
-  }
-
-  _renderToLayer(L, env){
-    L._pads.forEach(o => { try { o.stop(); } catch(_){} });
-    L._pads = [];
-
-    const r = recipeFromEnv(env);
-    L._birds = r.birds;
-    L._density = r.density;
-    L._tempo = r.tempo;
-
-    const cutoff = 700 + r.brightness * 4200;
-    L.filter.frequency.value = cutoff;
-    L.rainGain.gain.value = r.rain * 0.22;
-
-    // ✅ 安心する和音（メジャー寄り・高すぎない）
-    const keyMap = { spring: 60, summer: 62, autumn: 60, winter: 57, auto: 60 };
-    const root = keyMap[env.season] ?? 60;
-
-    const prog = [
-      [0, 4, 7, 11],   // maj7
-      [0, 2, 7, 9],    // add2 / 6
-      [0, 4, 7, 9],    // 6
-      [0, 4, 7, 14],   // add9
-    ];
-
-    const rng = mulberry32(env.seed);
-    const pick = prog[Math.floor(rng()*prog.length)];
-    const chord = pick.map(x => root + x);
-
-    chord.forEach((m, i) => {
-      const o = this.ctx.createOscillator();
-      o.type = "sine"; // ✅ 柔らかい
-      o.frequency.value = midiToHz(m);
-
-      const og = this.ctx.createGain();
-      og.gain.value = 0.0;
-
-      const now = this.ctx.currentTime;
-      const target = 0.055 + i*0.010;
-      og.gain.setValueAtTime(0.0, now);
-      og.gain.linearRampToValueAtTime(target, now + 6.0);
-
-      o.connect(og);
-      og.connect(L.padGain);
-
-      o.start();
-      L._pads.push(o);
-    });
-  }
-
-  _scheduleLoop(env){
     this.timers.forEach(t => clearTimeout(t));
     this.timers = [];
 
-    const L = (this.active === "A") ? this.layerA : this.layerB;
-    if (!L) return;
+    // 新しいコードへ（ゆっくりフェード）
+    this._playChord(env, true);
 
-    const rng = mulberry32(env.seed ^ 0x9E3779B9);
-
-    const scheduleBell = () => {
-      const density = L._density;
-      const base = 2600;
-      const jitter = 2400;
-      const interval = base + (1.0 - density) * jitter + rng()*900;
-
-      this._bell(L, rng);
-      this.timers.push(setTimeout(scheduleBell, interval));
-    };
-
-    const scheduleBird = () => {
-      const p = L._birds;
-      const interval = 10000 + rng()*16000;
-      if (rng() < p) this._bird(L, rng);
-      this.timers.push(setTimeout(scheduleBird, interval));
-    };
-
-    const scheduleDrop = () => {
-      const rain = (L.rainGain.gain.value / 0.22);
-      const interval = 2600 + rng()*4200;
-      if (rng() < rain * 0.85) this._drop(L, rng);
-      this.timers.push(setTimeout(scheduleDrop, interval));
-    };
-
-    // ✅ “怖くない旋律”モチーフ：たまにだけ出す
-    const scheduleMelody = () => {
-      let p = 0.18;
-      if (env.time === "morning") p += 0.06;
-      if (env.time === "day")     p += 0.04;
-      if (env.time === "night")   p -= 0.12;
-      if (env.time === "late")    p -= 0.16;
-      if (env.weather === "rain") p -= 0.06;
-      p = clamp(p, 0.02, 0.28);
-
-      const interval = 16000 + rng()*18000; // 16〜34秒ごと
-      if (rng() < p) this._motifSafe(L, env, rng);
-
-      this.timers.push(setTimeout(scheduleMelody, interval));
-    };
-
-    scheduleBell();
-    scheduleBird();
-    scheduleDrop();
-    scheduleMelody();
+    // メロディループ開始
+    this._scheduleMelody(env);
   }
 
-  _bell(L, rng){
-    const now = this.ctx.currentTime;
-    const o = this.ctx.createOscillator();
-    o.type = "sine";
-
-    // 音域は刺さらないように少し抑えめ
-    const base = 360 + rng()*760;
-    o.frequency.setValueAtTime(base, now);
-
-    const g = this.ctx.createGain();
-    g.gain.setValueAtTime(0.0, now);
-    g.gain.linearRampToValueAtTime(0.030 + rng()*0.018, now + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0008, now + 1.8 + rng()*0.9);
-
-    o.connect(g);
-    g.connect(L.bellGain);
-
-    o.start(now);
-    o.stop(now + 3.0);
+  // ===== Chords =====
+  _keyRoot(env){
+    // 安定するキー中心（怖くならない）
+    // 春夏：C/D、秋：C、冬：A(低め)寄り
+    if (env.season === "summer") return 62; // D
+    if (env.season === "winter") return 57; // A
+    return 60; // C
   }
 
-  _drop(L, rng){
-    const now = this.ctx.currentTime;
-    const o = this.ctx.createOscillator();
-    o.type = "triangle";
-    const f1 = 700 + rng()*700;
-    const f2 = 260 + rng()*200;
-    o.frequency.setValueAtTime(f1, now);
-    o.frequency.exponentialRampToValueAtTime(f2, now + 0.12);
-
-    const g = this.ctx.createGain();
-    g.gain.setValueAtTime(0.0, now);
-    g.gain.linearRampToValueAtTime(0.022 + rng()*0.014, now + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0008, now + 0.35);
-
-    o.connect(g);
-    g.connect(L.bellGain);
-
-    o.start(now);
-    o.stop(now + 0.6);
+  _progression(root){
+    // “安心する”進行：I → IV → vi → V（全部メジャー/穏やか系ボイシング）
+    // (maj7, add9 っぽい柔らかさ)
+    const I  = [0, 4, 7, 11];
+    const IV = [5, 9, 12, 16];
+    const vi = [9, 12, 16, 19];
+    const V  = [7, 11, 14, 16]; // V(add6)寄り
+    return [I, IV, vi, V].map(ch => ch.map(x => root + x));
   }
 
-  _bird(L, rng){
-    const now = this.ctx.currentTime;
-    const o = this.ctx.createOscillator();
-    o.type = "sine";
-
-    // 鳥も高すぎると怖くなるので抑える
-    const f0 = 1200 + rng()*650;
-    const f1 = f0 + (rng()*420 - 210);
-
-    o.frequency.setValueAtTime(f0, now);
-    o.frequency.linearRampToValueAtTime(f1, now + 0.18);
-    o.frequency.linearRampToValueAtTime(f0*0.94, now + 0.36);
-
-    const g = this.ctx.createGain();
-    g.gain.setValueAtTime(0.0, now);
-    g.gain.linearRampToValueAtTime(0.014 + rng()*0.010, now + 0.04);
-    g.gain.linearRampToValueAtTime(0.0, now + 0.46);
-
-    o.connect(g);
-    g.connect(L.bellGain);
-
-    o.start(now);
-    o.stop(now + 0.6);
+  _stopChord(){
+    this._chordOsc.forEach(o => { try { o.stop(); } catch(_){} });
+    this._chordOsc = [];
   }
 
-  // ✅ ここが「怖くない旋律」本体
-  _motifSafe(L, env, rng){
+  _playChord(env, first=false){
+    if (!this.active) return;
+
+    const root = this._keyRoot(env);
+    const prog = this._progression(root);
+    const chord = prog[this._progIndex % prog.length];
+
+    // 1コードあたりの長さ（8〜12秒）
+    const dur = 8.5 + this._rng()*3.5;
+
+    // 古いコードはゆっくり消す
     const now = this.ctx.currentTime;
+    this._chordOsc.forEach(node => {
+      try {
+        if (node._gain) node._gain.gain.setTargetAtTime(0.00001, now, 3.0);
+        node.stop(now + 6.0);
+      } catch(_){}
+    });
+    this._chordOsc = [];
 
-    // 明るいメジャー・ペンタトニック固定
-    const scale = [0, 2, 4, 7, 9];
+    // 新しいコードを作る（低め・柔らかい）
+    chord.forEach((m, i) => {
+      const osc = this.ctx.createOscillator();
+      osc.type = (i === 0) ? "sine" : "triangle"; // 柔らかい
 
-    // 低め音域（C4中心）で安定
-    let baseMidi = 60; // C4
-    if (env.time === "morning") baseMidi = 62; // D4
-    if (env.time === "day")     baseMidi = 64; // E4
-    if (env.time === "evening") baseMidi = 60; // C4
-    if (env.time === "night")   baseMidi = 57; // A3
-    if (env.time === "late")    baseMidi = 55; // G3
-
-    // 4音だけ。休符多め。跳躍禁止（隣・同音のみ）
-    const motifLen = 4;
-    let degree = Math.floor(rng() * scale.length);
-    const degrees = [];
-
-    for (let i=0;i<motifLen;i++){
-      if (rng() < 0.25) { degrees.push(null); continue; }
-      degrees.push(degree);
-
-      const r = rng();
-      if (r < 0.45) {
-        // stay
-      } else if (r < 0.75) {
-        degree = Math.min(scale.length - 1, degree + 1);
-      } else {
-        degree = Math.max(0, degree - 1);
-      }
-    }
-
-    // ゆっくり（主張しない）
-    const step = 60 / 50;
-    const noteDur = step * 0.9;
-
-    degrees.forEach((deg, i) => {
-      if (deg === null) return;
-
-      // たまにだけ1オクターブ上（頻度かなり低め）
-      const up = (rng() < 0.10) ? 12 : 0;
-      const m = baseMidi + scale[deg] + up;
-      const freq = midiToHz(m);
-
-      const o = this.ctx.createOscillator();
-      o.type = "sine";
-      o.frequency.setValueAtTime(freq, now + i * step);
+      // 低めに寄せる（怖い高音を避ける）
+      const midi = m - 12; // 1オクターブ下げ
+      osc.frequency.setValueAtTime(midiToHz(midi), now);
 
       const g = this.ctx.createGain();
-      const t0 = now + i * step;
-      const t1 = t0 + noteDur;
+      g.gain.setValueAtTime(0.00001, now);
+      g.gain.exponentialRampToValueAtTime(0.08 + i*0.02, now + 2.2); // ふわっと立ち上げ
+      g.gain.setTargetAtTime(0.06 + i*0.015, now + 3.0, 2.5);
 
-      // アタック遅めで刺さらない
-      g.gain.setValueAtTime(0.00001, t0);
-      g.gain.exponentialRampToValueAtTime(0.020, t0 + 0.14);
-      g.gain.exponentialRampToValueAtTime(0.00001, t1);
+      osc.connect(g);
+      g.connect(this.padGain);
 
-      o.connect(g);
-      g.connect(L.melodyGain);
-
-      o.start(t0);
-      o.stop(t1 + 0.02);
+      osc._gain = g;
+      osc.start(now);
+      this._chordOsc.push(osc);
     });
+
+    this._progIndex++;
+
+    // 次のコード
+    this.timers.push(setTimeout(() => this._playChord(env), dur * 1000));
   }
 
-  _whiteNoiseBuffer(seconds){
-    const sr = this.ctx.sampleRate;
-    const len = Math.floor(sr * seconds);
-    const buf = this.ctx.createBuffer(1, len, sr);
-    const data = buf.getChannelData(0);
-    for (let i=0;i<len;i++) data[i] = (Math.random()*2 - 1) * 0.35;
-    return buf;
+  // ===== Melody =====
+  _safeScale(){
+    // 怖くならない：メジャー・ペンタトニック
+    return [0, 2, 4, 7, 9];
+  }
+
+  _pickMotifTemplate(){
+    // “音楽っぽい”けど怖くない：上って戻る系（跳躍なし）
+    const T = [
+      [0,1,2,1, 0,1,0,null],   // やさしい往復
+      [0,1,1,2, 1,0,null,0],   // ため→少し上→戻る
+      [0,0,1,2, 2,1,0,null],   // じわ上がって戻る
+      [1,2,3,2, 1,0,1,null],   // 少し明るめ
+    ];
+    return T[Math.floor(this._rng()*T.length)];
+  }
+
+  _melodyBaseMidi(env){
+    // 旋律の音域：中低域固定（怖さ排除）
+    if (env.time === "day") return 62;     // D4
+    if (env.time === "morning") return 60; // C4
+    if (env.time === "evening") return 59; // B3
+    if (env.time === "night") return 55;   // G3
+    if (env.time === "late") return 53;    // F3
+    return 60;
+  }
+
+  _scheduleMelody(env){
+    const scale = this._safeScale();
+    const baseMidi = this._melodyBaseMidi(env);
+
+    const motif = this._pickMotifTemplate();
+
+    const playOnce = () => {
+      if (!this.active) return;
+
+      // どれくらい出すか（昼は少し多め、深夜はかなり少なめ）
+      let p = 0.45;
+      if (env.time === "night") p = 0.25;
+      if (env.time === "late") p = 0.18;
+
+      // 雨はメロディ控えめ（静かに）
+      if (env.weather === "rain") p -= 0.08;
+      p = clamp(p, 0.10, 0.55);
+
+      if (this._rng() < p) {
+        const now = this.ctx.currentTime;
+
+        // 同じテンプレでも seed で“微妙に”ずらす（ただし跳躍はさせない）
+        let startDeg = Math.floor(this._rng()*2); // 0 or 1
+        motif.forEach((d, i) => {
+          if (d === null) return;
+
+          const deg = clamp(startDeg + d, 0, scale.length - 1);
+          const midi = baseMidi + scale[deg];
+
+          this._tone(midi, now + i * this._stepSec, this._stepSec * 0.95);
+        });
+      }
+
+      // 次のフレーズ（6〜12秒）
+      const gap = 6 + this._rng()*6;
+      this.timers.push(setTimeout(playOnce, gap * 1000));
+    };
+
+    playOnce();
+  }
+
+  _tone(midi, t0, dur){
+    const o = this.ctx.createOscillator();
+    o.type = "triangle"; // 音楽感＋柔らかさ
+
+    // 高すぎると怖いので上限を制限
+    const safeMidi = Math.min(midi, 72); // C5まで
+    o.frequency.setValueAtTime(midiToHz(safeMidi), t0);
+
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.00001, t0);
+    g.gain.exponentialRampToValueAtTime(0.030, t0 + 0.10); // 立ち上がりゆっくり
+    g.gain.setTargetAtTime(0.00001, t0 + dur, 0.12);
+
+    o.connect(g);
+    g.connect(this.melGain);
+
+    o.start(t0);
+    o.stop(t0 + dur + 0.25);
   }
 
   _tapBeep(){
@@ -632,7 +466,7 @@ class AmbientEngine{
     g.gain.linearRampToValueAtTime(0.0008, now + 0.01);
     g.gain.linearRampToValueAtTime(0.0, now + 0.03);
     o.connect(g);
-    g.connect(this.master);
+    g.connect(this.comp);
     o.start(now);
     o.stop(now + 0.05);
   }
