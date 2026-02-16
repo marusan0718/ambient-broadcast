@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Ambient Weather (Musical)</title>
+  <title>Ambient Weather Synth</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tone.js (cdnjs) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/15.3.5/Tone.js"></script>
 </head>
 
-<body class="min-h-screen transition-colors duration-700 bg-gradient-to-b from-slate-100 to-slate-300">
+<body class="min-h-screen transition-colors duration-700">
   <main class="min-h-screen flex items-center justify-center p-6">
     <div class="w-full max-w-xl rounded-3xl bg-white/70 backdrop-blur shadow-xl border border-white/60 p-6">
       <header class="flex items-start justify-between gap-4">
         <div>
           <h1 class="text-xl font-semibold tracking-tight">Ambient Weather</h1>
-          <p class="text-sm text-slate-600">風と天気で“自然と同期”する、音楽寄りアンビエント</p>
-          <p id="countdown" class="mt-2 text-xs text-slate-500">次の更新まで —</p>
+          <p class="text-sm text-slate-600">風と天気で“自然と同期”するシンセ</p>
         </div>
 
         <div class="flex gap-2">
@@ -45,40 +45,7 @@
           <div class="text-xs text-slate-500">ステータス</div>
           <div id="status" class="mt-1 text-sm text-slate-700">待機中（Startで音が鳴る）</div>
 
-          <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <div>
-              <div class="text-xs text-slate-500 mb-1">季節（固定）</div>
-              <select id="seasonSel" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                <option value="auto">Auto</option>
-                <option value="spring">春</option>
-                <option value="summer">夏</option>
-                <option value="autumn">秋</option>
-                <option value="winter">冬</option>
-              </select>
-            </div>
-            <div>
-              <div class="text-xs text-slate-500 mb-1">時間帯（固定）</div>
-              <select id="timeSel" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                <option value="auto">Auto</option>
-                <option value="morning">朝</option>
-                <option value="day">昼</option>
-                <option value="evening">夕</option>
-                <option value="night">夜</option>
-                <option value="late">深夜</option>
-              </select>
-            </div>
-            <div>
-              <div class="text-xs text-slate-500 mb-1">天気（固定）</div>
-              <select id="weatherSel" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                <option value="auto">Auto</option>
-                <option value="clear">晴れ</option>
-                <option value="rain">雨</option>
-                <option value="other">その他</option>
-              </select>
-            </div>
-          </div>
-
-          <details class="mt-4">
+          <details class="mt-3">
             <summary class="cursor-pointer text-sm text-slate-700 select-none">位置情報が使えない場合（手入力）</summary>
             <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input id="lat" class="rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="lat (例: 35.681)" />
@@ -92,18 +59,16 @@
       </section>
 
       <footer class="mt-5 text-xs text-slate-500">
-        Open-Meteo（キー不要）で現在天気を取得し、Tone.jsでリアルタイム生成。5分ごと自動更新。
+        Open-Meteo（キー不要）で現在天気を取得し、Tone.jsでリアルタイム生成。
       </footer>
     </div>
   </main>
 
 <script>
   // ---------------------------
-  // Open-Meteo current weather
+  // 1) Open-Meteo: current weather
   // ---------------------------
   const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
-  const AUTO_UPDATE_MS = 5 * 60 * 1000;
-  let nextUpdateAt = Date.now() + AUTO_UPDATE_MS;
 
   function describeWeather(code) {
     if (code === 0) return "快晴";
@@ -118,7 +83,7 @@
     return "不明";
   }
 
-  function weatherCategoryFromCode(code) {
+  function weatherCategory(code) {
     if (code === 0 || [1,2].includes(code)) return "clear";
     if ([61,63,65,66,67,80,81,82,51,53,55,56,57,95,96,99].includes(code)) return "rain";
     return "other";
@@ -137,7 +102,9 @@
 
     const code = data?.current?.weather_code;
     const wind = data?.current?.wind_speed_10m;
-    if (typeof code !== "number" || typeof wind !== "number") throw new Error("天気データ形式が想定と違います");
+    if (typeof code !== "number" || typeof wind !== "number") {
+      throw new Error("天気データの形式が想定と違います");
+    }
     return { code, wind };
   }
 
@@ -153,288 +120,140 @@
   }
 
   // ---------------------------
-  // Helpers: time/season/manual
+  // 2) Tone.js: synth + musical logic
   // ---------------------------
-  function autoTimeBlock(){
-    const h = new Date().getHours();
-    if (h >= 5 && h < 10) return "morning";
-    if (h >= 10 && h < 16) return "day";
-    if (h >= 16 && h < 19) return "evening";
-    if (h >= 19 && h < 24) return "night";
-    return "late";
-  }
-
-  function autoSeason(){
-    const m = new Date().getMonth() + 1;
-    if (m >= 3 && m <= 5) return "spring";
-    if (m >= 6 && m <= 8) return "summer";
-    if (m >= 9 && m <= 11) return "autumn";
-    return "winter";
-  }
+  let isRunning = false;
+  let synth, reverb, filter, loop;
+  let lastWeather = { code: 0, wind: 0 };
 
   function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
 
-  function setStatus(msg) { document.getElementById("status").textContent = msg; }
+  // 風速(m/s) -> 発音間隔(s)
+  function windToIntervalSeconds(wind) {
+    const w = clamp(wind, 0, 15);
+    const t = 1.2 - (w / 15) * 1.02;
+    return clamp(t, 0.18, 1.2);
+  }
 
-  function applyBackground(cat, time){
+  function pickScale(category) {
+    if (category === "clear") return ["C4","D4","E4","G4","A4","C5"];
+    if (category === "rain")  return ["A2","C3","D3","E3","G3","A3"];
+    return ["D3","E3","F3","A3","B3","D4"];
+  }
+
+  function applyBackground(category) {
     document.body.classList.remove(
-      "bg-gradient-to-b",
-      "from-orange-50","to-orange-200",
+      "bg-gradient-to-b","from-orange-50","to-orange-200",
       "from-indigo-950","to-slate-900",
-      "from-slate-100","to-slate-300",
-      "from-slate-900","to-slate-950",
-      "from-amber-50","to-amber-200"
+      "from-slate-100","to-slate-300"
     );
     document.body.classList.add("bg-gradient-to-b");
-
-    const isNight = (time === "night" || time === "late");
-    if (cat === "clear" && !isNight) {
-      document.body.classList.add("from-amber-50","to-amber-200");
-    } else if (cat === "rain" || isNight) {
-      document.body.classList.add("from-slate-900","to-slate-950");
+    if (category === "clear") {
+      document.body.classList.add("from-orange-50","to-orange-200");
+    } else if (category === "rain") {
+      document.body.classList.add("from-indigo-950","to-slate-900");
     } else {
       document.body.classList.add("from-slate-100","to-slate-300");
     }
   }
 
-  // 風速 -> 発音間隔(s)（強いほど短い）
-  function windToIntervalSeconds(wind) {
-    const w = clamp(wind, 0, 15);
-    const t = 0.85 - (w / 15) * 0.62;   // 0m/s=0.85s, 15m/s=0.23s
-    return clamp(t, 0.23, 0.85);
+  function setStatus(msg) {
+    document.getElementById("status").textContent = msg;
   }
 
-  // ---------------------------
-  // Tone.js: "音楽"ロジック（コード+アルペジオ）
-  // ---------------------------
-  let isRunning = false;
-  let pad, arpSynth, reverb, filter, chordLoop, arpLoop;
-  let lastWeather = { code: 0, wind: 0 };
+  function updateUI({ code, wind }) {
+    const cat = weatherCategory(code);
+    document.getElementById("weatherText").textContent = describeWeather(code);
+    document.getElementById("weatherCode").textContent = String(code);
+    document.getElementById("windSpeed").textContent = wind.toFixed(1);
 
-  // seed PRNG（更新ごとの“同じ条件なら似た雰囲気”）
-  function mulberry32(a){
-    return function(){
-      let t = a += 0x6D2B79F5;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
+    const interval = windToIntervalSeconds(wind);
+    const density = (1 / interval).toFixed(1) + " notes/sec";
+    document.getElementById("density").textContent = density;
+
+    applyBackground(cat);
   }
 
   function ensureAudioGraph() {
-    if (pad) return;
+    if (synth) return;
 
-    reverb = new Tone.Reverb({ decay: 4.2, wet: 0.22 }).toDestination();
-    filter = new Tone.Filter({ type: "lowpass", frequency: 2400, rolloff: -12 }).connect(reverb);
+    reverb = new Tone.Reverb({ decay: 4.5, wet: 0.25 }).toDestination();
+    filter = new Tone.Filter({ type: "lowpass", frequency: 1200, rolloff: -12 }).connect(reverb);
 
-    // Pad（和音の土台）
-    pad = new Tone.PolySynth(Tone.Synth, {
+    synth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: "sine" },
-      envelope: { attack: 0.6, decay: 0.2, sustain: 0.7, release: 2.6 }
+      envelope: { attack: 0.01, decay: 0.2, sustain: 0.0, release: 1.0 }
     }).connect(filter);
-
-    // Arp（旋律）
-    arpSynth = new Tone.Synth({
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.01, decay: 0.15, sustain: 0.0, release: 0.9 }
-    }).connect(filter);
-
-    // 音量（うるさくないが“聞こえる”）
-    pad.volume.value = -10;
-    arpSynth.volume.value = -14;
   }
 
-  function getManualEnv(){
-    const seasonSel = document.getElementById("seasonSel").value;
-    const timeSel = document.getElementById("timeSel").value;
-    const weatherSel = document.getElementById("weatherSel").value;
+  function rebuildLoop() {
+    if (loop) {
+      loop.dispose();
+      loop = null;
+    }
 
-    const season = (seasonSel === "auto") ? autoSeason() : seasonSel;
-    const time = (timeSel === "auto") ? autoTimeBlock() : timeSel;
+    const { code, wind } = lastWeather;
+    const cat = weatherCategory(code);
+    const scale = pickScale(cat);
 
-    let weatherCat = weatherSel;
-    if (weatherSel === "auto") weatherCat = weatherCategoryFromCode(lastWeather.code);
-
-    return { season, time, weatherCat };
-  }
-
-  function recipe() {
-    const { season, time, weatherCat } = getManualEnv();
-
-    // BPM：朝昼は少し速い、夜は遅い
-    let bpm = 78;
-    if (time === "morning") bpm = 84;
-    if (time === "day") bpm = 88;
-    if (time === "evening") bpm = 78;
-    if (time === "night") bpm = 70;
-    if (time === "late") bpm = 64;
-
-    // 明るさ（フィルタ）
-    let cutoff = 2600;
-    if (weatherCat === "clear") cutoff = 3400;
-    if (weatherCat === "other") cutoff = 2600;
-    if (weatherCat === "rain") cutoff = 2200;
-    if (time === "night" || time === "late") cutoff -= 500; // 暗くしすぎない程度
-
-    cutoff = clamp(cutoff, 1800, 4200);
-
-    // リバーブ（雨は少し増える）
-    let wet = 0.22;
-    if (weatherCat === "rain") wet = 0.30;
-    if (time === "late") wet += 0.03;
-    wet = clamp(wet, 0.18, 0.35);
-
-    // Key（季節）
-    const rootBySeason = { spring: "C", summer: "D", autumn: "C", winter: "A" };
-    const key = rootBySeason[season] || "C";
-
-    // 風→密度（アルペジオの間隔に反映）
-    const intervalSec = windToIntervalSeconds(lastWeather.wind);
-
-    // 雨は密度少し落とす（でも暗くしすぎない）
-    const densityMul = (weatherCat === "rain") ? 1.15 : (weatherCat === "clear" ? 0.95 : 1.0);
-
-    return { bpm, cutoff, wet, key, intervalSec: intervalSec * densityMul, time, weatherCat, season };
-  }
-
-  function chordProgression(key){
-    // 安心寄りで明るい：I–IV–V–I（7th使わない）
-    // key: "C" or "D" or "A"
-    const prog = {
-      "C": [["C4","E4","G4"], ["F4","A4","C5"], ["G4","B4","D5"], ["C4","E4","G4"]],
-      "D": [["D4","F#4","A4"], ["G4","B4","D5"], ["A4","C#5","E5"], ["D4","F#4","A4"]],
-      "A": [["A3","C#4","E4"], ["D4","F#4","A4"], ["E4","G#4","B4"], ["A3","C#4","E4"]],
-    };
-    return prog[key] || prog["C"];
-  }
-
-  function scaleForArp(key, weatherCat){
-    // “明るく音楽”を固定しつつ、雨は少し落ち着かせる（でも短調にしない）
-    // 晴：メジャー（爽やか） / 雨：メジャーペンタ（角が立たない）
-    const major = {
-      "C": ["C4","D4","E4","F4","G4","A4","B4","C5"],
-      "D": ["D4","E4","F#4","G4","A4","B4","C#5","D5"],
-      "A": ["A3","B3","C#4","D4","E4","F#4","G#4","A4"],
-    };
-    const pent = {
-      "C": ["C4","D4","E4","G4","A4","C5"],
-      "D": ["D4","E4","F#4","A4","B4","D5"],
-      "A": ["A3","B3","C#4","E4","F#4","A4"],
-    };
-    return (weatherCat === "rain") ? (pent[key] || pent["C"]) : (major[key] || major["C"]);
-  }
-
-  function disposeLoops(){
-    if (chordLoop) { chordLoop.dispose(); chordLoop = null; }
-    if (arpLoop) { arpLoop.dispose(); arpLoop = null; }
-  }
-
-  function rebuildMusic(){
-    disposeLoops();
-    const r = recipe();
-
-    filter.frequency.value = r.cutoff;
-    reverb.wet.value = r.wet;
-    Tone.Transport.bpm.value = r.bpm;
-
-    const prog = chordProgression(r.key);
-    const scale = scaleForArp(r.key, r.weatherCat);
-
-    // seed: 更新ごとに変わるが、条件が同じなら似る
-    const seed = ((lastWeather.code * 1000) + Math.floor(lastWeather.wind * 10) + r.bpm + r.cutoff) >>> 0;
-    const rand = mulberry32(seed);
-
-    // chord: 2小節に1回、ゆっくり鳴らす
-    let chordIndex = 0;
-    chordLoop = new Tone.Loop((time) => {
-      const chord = prog[chordIndex % prog.length];
-      chordIndex++;
-
-      // ほんの少しだけオクターブ入れ替え（明るさ維持）
-      const lift = (rand() < 0.35) ? 0 : 0;
-      const out = chord.map(n => Tone.Frequency(n).transpose(lift).toNote());
-
-      pad.triggerAttackRelease(out, "1m", time, 0.70);
-    }, "2m").start(0);
-
-    // arp: 風で間隔が変わる（音楽っぽく、パターンは固定寄り）
-    const patterns = [
-      [0,2,4,2, 0,2,4,2],
-      [0,1,2,1, 0,1,2,1],
-      [0,2,3,2, 0,2,3,2]
-    ];
-    const pat = patterns[Math.floor(rand()*patterns.length)];
-
-    let step = 0;
-    arpLoop = new Tone.Loop((time) => {
-      // 出しすぎない（夜/雨は少し抑える）
-      let p = 0.85;
-      if (r.time === "night") p = 0.72;
-      if (r.time === "late") p = 0.62;
-      if (r.weatherCat === "rain") p -= 0.10;
-
-      if (rand() < p){
-        const baseDeg = Math.floor(rand()*2); // 0 or 1
-        const d = pat[step % pat.length];
-        const idx = clamp(baseDeg + d, 0, scale.length - 1);
-
-        // 高すぎを避ける（明るいけど刺さらない）
-        const note = scale[idx];
-        arpSynth.triggerAttackRelease(note, 0.08, time, 0.55);
+    if (filter && reverb) {
+      if (cat === "rain") {
+        filter.frequency.value = 700;
+        reverb.wet.value = 0.35;
+      } else if (cat === "clear") {
+        filter.frequency.value = 1600;
+        reverb.wet.value = 0.22;
+      } else {
+        filter.frequency.value = 1100;
+        reverb.wet.value = 0.28;
       }
+    }
 
-      step++;
-    }, r.intervalSec).start(0);
+    const interval = windToIntervalSeconds(wind);
 
-    // 背景も変える（時間＆天気）
-    applyBackground(r.weatherCat, r.time);
+    loop = new Tone.Loop((time) => {
+      const note = scale[Math.floor(Math.random() * scale.length)];
+      const chordChance = (cat === "clear") ? 0.22 : (cat === "rain" ? 0.12 : 0.16);
 
-    return r;
+      if (Math.random() < chordChance) {
+        const n2 = scale[Math.floor(Math.random() * scale.length)];
+        synth.triggerAttackRelease([note, n2], 0.08, time, 0.35);
+      } else {
+        synth.triggerAttackRelease(note, 0.08, time, 0.35);
+      }
+    }, interval).start(0);
   }
 
-  async function start(){
+  async function start() {
     ensureAudioGraph();
-    await Tone.start(); // iOSのため
+    await Tone.start(); // iOS: ユーザー操作から呼ぶ必要あり
+    Tone.Transport.bpm.value = 80;
     Tone.Transport.start();
-    const r = rebuildMusic();
+    rebuildLoop();
 
     isRunning = true;
     document.getElementById("btnToggle").textContent = "Stop";
     document.getElementById("btnToggle").classList.remove("bg-emerald-600","hover:bg-emerald-500");
     document.getElementById("btnToggle").classList.add("bg-rose-600","hover:bg-rose-500");
-    setStatus(`再生中：${r.season}/${r.time}/${r.weatherCat}（キー:${r.key}, BPM:${r.bpm}）`);
+    setStatus("再生中（風に同期して変化）");
   }
 
-  function stop(){
+  function stop() {
     isRunning = false;
-    disposeLoops();
+    if (loop) { loop.stop(); loop.dispose(); loop = null; }
     Tone.Transport.stop();
-
     document.getElementById("btnToggle").textContent = "Start";
     document.getElementById("btnToggle").classList.remove("bg-rose-600","hover:bg-rose-500");
     document.getElementById("btnToggle").classList.add("bg-emerald-600","hover:bg-emerald-500");
     setStatus("停止中（Startで再開）");
   }
 
-  function updateUI({ code, wind }){
-    const autoCat = weatherCategoryFromCode(code);
-    document.getElementById("weatherText").textContent = describeWeather(code);
-    document.getElementById("weatherCode").textContent = String(code);
-    document.getElementById("windSpeed").textContent = wind.toFixed(1);
-
-    const interval = windToIntervalSeconds(wind);
-    document.getElementById("density").textContent = (1 / interval).toFixed(1) + " notes/sec";
-
-    // 背景は手動固定も考慮して rebuildMusic()側で最終反映
-    applyBackground(autoCat, autoTimeBlock());
-  }
-
-  async function refreshWeather(auto=true){
-    try{
+  async function refreshWeather(auto = true) {
+    try {
       setStatus("天気取得中…");
       let lat, lon;
 
-      if (auto){
+      if (auto) {
         const pos = await getCurrentPosition();
         lat = pos.coords.latitude;
         lon = pos.coords.longitude;
@@ -448,59 +267,29 @@
       lastWeather = { code, wind };
       updateUI(lastWeather);
 
-      // 自動更新の次回時刻も更新
-      nextUpdateAt = Date.now() + AUTO_UPDATE_MS;
-
-      if (isRunning){
-        const r = rebuildMusic();
-        setStatus(`更新反映：${r.season}/${r.time}/${r.weatherCat}（キー:${r.key}, BPM:${r.bpm}）`);
+      if (isRunning) {
+        rebuildLoop();
+        setStatus("再生中（天気/風を反映して更新）");
       } else {
         setStatus("取得OK（Startで音が鳴る）");
       }
-    } catch(e){
+    } catch (e) {
       console.error(e);
       setStatus(`エラー: ${e.message}`);
     }
   }
 
-  // 5分ごと自動更新（再生中のみ反映）
-  function tick(){
-    const now = Date.now();
-    const remain = Math.max(0, nextUpdateAt - now);
-    document.getElementById("countdown").textContent = `次の更新まで ${Math.floor(remain/60000).toString().padStart(2,"0")}:${Math.floor((remain%60000)/1000).toString().padStart(2,"0")}`;
-
-    if (remain === 0){
-      // 自動更新（位置情報が許可されていれば自動、だめなら止めない）
-      refreshWeather(true);
-    }
-    requestAnimationFrame(tick);
-  }
-
   // UI events
   document.getElementById("btnToggle").addEventListener("click", async () => {
-    if (!isRunning){
-      await start();
-    } else {
-      stop();
-    }
+    if (!isRunning) await start();
+    else stop();
   });
+
   document.getElementById("btnRefresh").addEventListener("click", () => refreshWeather(true));
   document.getElementById("btnUseManual").addEventListener("click", () => refreshWeather(false));
 
-  // 手動固定を変えたら即反映（再生中なら）
-  ["seasonSel","timeSel","weatherSel"].forEach(id => {
-    document.getElementById(id).addEventListener("change", () => {
-      if (isRunning){
-        const r = rebuildMusic();
-        setStatus(`手動反映：${r.season}/${r.time}/${r.weatherCat}（キー:${r.key}, BPM:${r.bpm}）`);
-      }
-    });
-  });
-
-  // init
-  applyBackground("other", autoTimeBlock());
+  applyBackground("other");
   refreshWeather(true);
-  tick();
 </script>
 </body>
 </html>
