@@ -1,15 +1,8 @@
 /**
- * Ambient Tide — 怖さゼロ固定（FINAL）
- * ✅ 使うもの
- *  - 和音：I–IV–V–I（add2/add9のみ、7th禁止、短調禁止）
- *  - 波形：sineのみ（倍音で刺さるのを排除）
- *  - メロディ：メジャー・ペンタ固定、隣接移動のみ、低音域、上限A4
- *  - フィルタ：LPF 1200固定（高音を物理的に消す）
- *  - エンベロープ：超なめらか（急アタック禁止）
- *
- * ❌ 使わないもの
- *  - 鳥/水滴/ベル/ノイズ（高域・不規則で怖さが出やすい）
- *  - ランダム跳躍 / 不協和 / 7th / 短調
+ * Ambient Tide — 明るく音楽 / 環境で変化
+ * - 目的：怖くない、でも明るく、音楽として成立
+ * - 仕組み：コード進行 + アルペジオ(旋律) + たまにモチーフ
+ * - 変化：time/weather/season で key/tempo/density/brightness が変化
  */
 
 const UPDATE_INTERVAL_MS = 5 * 60 * 1000;
@@ -28,6 +21,16 @@ const state = {
 };
 
 function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+function midiToHz(m){ return 440 * Math.pow(2, (m-69)/12); }
+
+function mulberry32(a){
+  return function(){
+    let t = a += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 function getAutoTimeBlock(){
   const h = new Date().getHours();
@@ -50,6 +53,36 @@ function label(k,v){
 function getEnv(){
   const time = (state.manual.time === "auto") ? getAutoTimeBlock() : state.manual.time;
   return { time, weather: state.manual.weather, season: state.manual.season, seed: state.seed };
+}
+
+function renderStatus(){
+  const env = getEnv();
+  const manual = Object.values(state.manual).some(v => v !== "auto");
+  modeLine.textContent =
+    `${manual ? "Manual" : "Auto"}: ${label("time", env.time)} / ${label("weather", env.weather)} / ${label("season", env.season)}`;
+}
+
+function fmt(ms){
+  const total = Math.max(0, Math.floor(ms/1000));
+  const m = String(Math.floor(total/60)).padStart(2,"0");
+  const s = String(total%60).padStart(2,"0");
+  return `${m}:${s}`;
+}
+
+function tickCountdown(){
+  const now = Date.now();
+  let remain = state.nextUpdateAt - now;
+
+  if (remain <= 0) {
+    state.nextUpdateAt = now + UPDATE_INTERVAL_MS;
+    state.seed = (state.seed + 1013904223) >>> 0;
+    if (engine && state.playing) engine.regenerate(getEnv());
+    renderStatus();
+    remain = state.nextUpdateAt - now;
+  }
+
+  countdown.textContent = `次の更新まで ${fmt(remain)}`;
+  requestAnimationFrame(tickCountdown);
 }
 
 // UI bind
@@ -85,52 +118,10 @@ playBtn.addEventListener("click", async () => {
   }
 });
 
-function renderStatus(){
-  const env = getEnv();
-  const manual = Object.values(state.manual).some(v => v !== "auto");
-  modeLine.textContent =
-    `${manual ? "Manual" : "Auto"}: ${label("time", env.time)} / ${label("weather", env.weather)} / ${label("season", env.season)}`;
-}
-
-function tickCountdown(){
-  const now = Date.now();
-  let remain = state.nextUpdateAt - now;
-
-  if (remain <= 0) {
-    state.nextUpdateAt = now + UPDATE_INTERVAL_MS;
-    state.seed = (state.seed + 1013904223) >>> 0;
-
-    if (engine && state.playing) engine.regenerate(getEnv());
-    renderStatus();
-
-    remain = state.nextUpdateAt - now;
-  }
-
-  countdown.textContent = `次の更新まで ${fmt(remain)}`;
-  requestAnimationFrame(tickCountdown);
-}
-function fmt(ms){
-  const total = Math.max(0, Math.floor(ms/1000));
-  const m = String(Math.floor(total/60)).padStart(2,"0");
-  const s = String(total%60).padStart(2,"0");
-  return `${m}:${s}`;
-}
-
-// PRNG（seedで統一感だけ出す。怖さ回避のためランダム性は弱め）
-function mulberry32(a){
-  return function(){
-    let t = a += 0x6D2B79F5;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-function midiToHz(m){ return 440 * Math.pow(2, (m-69)/12); }
-
 let engine = null;
 
 async function startPlayback(){
-  if (!engine) engine = new ZeroFearEngine();
+  if (!engine) engine = new BrightMusicEngine();
   await engine.start(getEnv());
 
   if ("mediaSession" in navigator) {
@@ -139,60 +130,120 @@ async function startPlayback(){
 }
 function stopPlayback(){ engine?.stop(); }
 
-class ZeroFearEngine{
+// ===== 音作りの “怖くない明るさ” レシピ =====
+function recipe(env){
+  // tempo
+  let bpm = 56;
+  if (env.time === "morning") bpm = 62;
+  if (env.time === "day") bpm = 64;
+  if (env.time === "evening") bpm = 56;
+  if (env.time === "night") bpm = 50;
+  if (env.time === "late") bpm = 46;
+
+  // density (どれくらい鳴るか)
+  let density = 0.55;
+  if (env.time === "night" || env.time === "late") density -= 0.18;
+
+  // brightness (フィルタの開き具合)
+  let bright = 0.70;
+  if (env.time === "night" || env.time === "late") bright -= 0.18;
+
+  // weather effect
+  if (env.weather === "cloudy") { density -= 0.08; bright -= 0.06; }
+  if (env.weather === "rain")   { density -= 0.10; bright -= 0.10; } // 雨でも暗くしすぎない
+
+  density = clamp(density, 0.20, 0.78);
+  bright = clamp(bright, 0.35, 0.85);
+
+  // season key
+  const seasonKey = {
+    spring: 60,  // C
+    summer: 62,  // D
+    autumn: 60,  // C
+    winter: 57,  // A
+    auto: 60
+  };
+  const root = seasonKey[env.season] ?? 60;
+
+  return { bpm, density, bright, root };
+}
+
+class BrightMusicEngine{
   constructor(){
     this.ctx = null;
-
     this.master = null;
     this.comp = null;
     this.lpf = null;
 
     this.padBus = null;
-    this.melBus = null;
+    this.arpBus = null;
 
     this._timers = [];
     this._rng = null;
 
     this._chordNodes = [];
-    this._bpm = 50;               // ゆっくり固定
-    this._q = 60 / this._bpm;     // 4分
-    this._e = this._q / 2;        // 8分
-    this._bar = this._q * 4;      // 1小節
+    this._bpm = 60;
+    this._step = 0.5; // 8分相当
+    this._bar = 2.0;  // 1小節相当(4/4の8分×8)
+
+    this._root = 60;
     this._progIndex = 0;
+
+    // 軽い空気感（怖くしない極薄ディレイ）
+    this._delay = null;
+    this._fb = null;
+    this._wet = null;
   }
 
   async start(env){
     if (!this.ctx){
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
 
-      // master（安全に）
       this.master = this.ctx.createGain();
-      this.master.gain.value = 1.10;
+      this.master.gain.value = 1.18; // そこそこ大きめ
 
-      // compressor（軽め）
       this.comp = this.ctx.createDynamicsCompressor();
-      this.comp.threshold.value = -22;
+      this.comp.threshold.value = -18;
       this.comp.knee.value = 24;
-      this.comp.ratio.value = 3.0;
-      this.comp.attack.value = 0.01;
-      this.comp.release.value = 0.18;
+      this.comp.ratio.value = 3.5;
+      this.comp.attack.value = 0.008;
+      this.comp.release.value = 0.16;
 
-      // LPF：怖さゼロの要。高域は物理的に消す
       this.lpf = this.ctx.createBiquadFilter();
       this.lpf.type = "lowpass";
-      this.lpf.frequency.value = 1200;   // ✅ 固定
+      this.lpf.frequency.value = 2600; // ✅ 明るめ（後でenvで動かす）
       this.lpf.Q.value = 0.7;
 
       this.padBus = this.ctx.createGain();
-      this.padBus.gain.value = 1.0;
+      this.padBus.gain.value = 0.90;
 
-      this.melBus = this.ctx.createGain();
-      this.melBus.gain.value = 0.42;     // ✅ メロディ控えめ固定
+      this.arpBus = this.ctx.createGain();
+      this.arpBus.gain.value = 0.55;
 
-      // routing
+      // tiny delay (very subtle)
+      this._delay = this.ctx.createDelay(0.35);
+      this._delay.delayTime.value = 0.18;
+
+      this._fb = this.ctx.createGain();
+      this._fb.gain.value = 0.14;
+
+      this._wet = this.ctx.createGain();
+      this._wet.gain.value = 0.10; // 極薄
+
+      // routing: (pad+arp) -> lpf -> master -> comp -> dest
       this.padBus.connect(this.lpf);
-      this.melBus.connect(this.lpf);
+      this.arpBus.connect(this.lpf);
+
+      // wet path
+      this.lpf.connect(this._delay);
+      this._delay.connect(this._fb);
+      this._fb.connect(this._delay);
+      this._delay.connect(this._wet);
+
+      // dry + wet
       this.lpf.connect(this.master);
+      this._wet.connect(this.master);
+
       this.master.connect(this.comp);
       this.comp.connect(this.ctx.destination);
     }
@@ -213,27 +264,35 @@ class ZeroFearEngine{
   regenerate(env){
     this._timers.forEach(t => clearTimeout(t));
     this._timers = [];
-    this._rng = mulberry32((env.seed ^ 0x12345678) >>> 0);
+    const r = recipe(env);
+
+    this._rng = mulberry32((env.seed ^ 0xBADA55) >>> 0);
+    this._bpm = r.bpm;
+    this._step = 60 / this._bpm / 2; // 8分
+    this._bar = this._step * 8;      // 8分×8
+
+    this._root = r.root;
     this._progIndex = 0;
 
-    // 全部固定（怖さゼロ優先）なので env で大きく変えない
-    // ただし “統一感” のために seed だけ使う
+    // 明るさ＝フィルタ開く（雨/夜でも閉めすぎない）
+    const cutoff = 1600 + r.bright * 2600; // 1600〜4200
+    this.lpf.frequency.setTargetAtTime(cutoff, this.ctx.currentTime, 1.0);
+
+    // 密度＝アルペジオ音量/頻度に反映
+    this.arpBus.gain.setTargetAtTime(0.40 + r.density * 0.35, this.ctx.currentTime, 1.0);
 
     this._playChordLoop();
-    this._playMelodyLoop();
+    this._playArpLoop(env);
+    this._maybeMotifLoop(env);
   }
 
-  _root(){
-    // 固定：Cメジャー（最も安心）
-    return 60; // C
-  }
-
+  // --- Harmony ---
   _progression(root){
-    // ✅ I – IV – V – I（add2/add9のみ）
-    // 7th禁止 / 短調禁止 / トライトーン感の出る構成を避ける
-    const I  = [0, 4, 7, 14];  // C E G D
-    const IV = [5, 9, 12, 14]; // F A C D
-    const V  = [7, 11, 14, 16];// G B D E
+    // ✅ 安心寄り：I – IV – V – I（add2/add6/add9で音楽感）
+    // 7thは使わない（不安感になりやすい）
+    const I  = [0, 4, 7, 14];   // add9
+    const IV = [5, 9, 12, 14];  // add2
+    const V  = [7, 11, 14, 16]; // add6-ish
     return [I, IV, V, I].map(ch => ch.map(x => root + x));
   }
 
@@ -243,34 +302,34 @@ class ZeroFearEngine{
   }
 
   _playChordLoop(){
-    const root = this._root();
-    const prog = this._progression(root);
+    const prog = this._progression(this._root);
     const chord = prog[this._progIndex % prog.length];
     this._progIndex++;
 
     const now = this.ctx.currentTime;
 
-    // 旧コードをゆっくり消す
+    // fade out old
     this._chordNodes.forEach(n => {
       try {
-        n.g.gain.setTargetAtTime(0.00001, now, 3.2);
-        n.osc.stop(now + 6.0);
+        n.g.gain.setTargetAtTime(0.00001, now, 2.8);
+        n.osc.stop(now + 5.0);
       } catch(_){}
     });
     this._chordNodes = [];
 
-    // 新コード（sineのみ / 低め / ゆっくり立ち上げ）
+    // new chord: mid range (not too low), sine only, slow attack
     chord.forEach((m, i) => {
       const osc = this.ctx.createOscillator();
       osc.type = "sine";
 
-      const midi = m - 12; // 低め
+      // 低すぎ回避：半オク下ではなく、必要なら一部だけ下げる
+      const midi = m - 7; // 5度下げくらい（明るさ維持）
       osc.frequency.setValueAtTime(midiToHz(midi), now);
 
       const g = this.ctx.createGain();
       g.gain.setValueAtTime(0.00001, now);
-      g.gain.exponentialRampToValueAtTime(0.10 + i*0.02, now + 3.0);
-      g.gain.setTargetAtTime(0.085 + i*0.015, now + 4.0, 3.5);
+      g.gain.exponentialRampToValueAtTime(0.08 + i*0.02, now + 2.2);
+      g.gain.setTargetAtTime(0.07 + i*0.015, now + 3.2, 2.8);
 
       osc.connect(g);
       g.connect(this.padBus);
@@ -279,72 +338,122 @@ class ZeroFearEngine{
       this._chordNodes.push({ osc, g });
     });
 
-    // 次のコード：2小節固定（ゆったり）
+    // next chord every 2 bars (ゆったり)
     this._timers.push(setTimeout(() => this._playChordLoop(), (this._bar * 2) * 1000));
   }
 
-  _scale(){
-    // ✅ メジャー・ペンタ固定
-    return [0, 2, 4, 7, 9];
+  // --- Melody/Arp ---
+  _scale(env){
+    // 明るく：メジャーペンタベース。季節でちょい味変（でも不安にならない範囲）
+    // spring/autumn: major pentatonic
+    // summer: major scale（爽やか）
+    // winter: major pentatonic（音域抑えめで透明）
+    if (env.season === "summer") return [0,2,4,5,7,9,11]; // major
+    return [0,2,4,7,9]; // major pentatonic
   }
 
-  _melBase(){
-    // ✅ 低め固定：G3付近（安心）
-    return 55; // G3
+  _melBase(env){
+    // 明るくするため、前より上げる（でも高すぎない）
+    if (env.time === "day") return 64;     // E4
+    if (env.time === "morning") return 62; // D4
+    if (env.time === "evening") return 60; // C4
+    if (env.time === "night") return 57;   // A3
+    if (env.time === "late") return 55;    // G3
+    return 60;
   }
 
-  _playMelodyLoop(){
-    const scale = this._scale();
-    const base = this._melBase();
-
+  _playArpLoop(env){
+    const scale = this._scale(env);
+    const base = this._melBase(env);
     const now = this.ctx.currentTime;
 
-    // ✅ 完全固定の安全モチーフ（跳躍ゼロ）
-    // 8分×8 = 1小節（うるさくしない）
-    const tpl = [0,1,2,1, 0,1,0,null];
+    // アルペジオパターン（音楽っぽいが、怖くなりにくい）
+    // degree: 0..scaleLen-1
+    const patterns = [
+      [0,2,4,2, 0,2,4,2],
+      [0,1,2,1, 0,1,2,1],
+      [0,2,3,2, 0,2,3,2],
+      [1,2,4,2, 1,2,4,2],
+    ];
+    const pat = patterns[Math.floor(this._rng()*patterns.length)];
 
-    // ✅ 出現率も固定で低め（主張させない）
-    const play = (this._rng() < 0.40);
+    // 密度：時間/天気を軽く反映（regen時にarpBusも変えてる）
+    let p = 0.72;
+    if (env.time === "night") p = 0.55;
+    if (env.time === "late") p = 0.45;
+    if (env.weather === "rain") p -= 0.10;
+    p = clamp(p, 0.35, 0.80);
 
-    if (play){
-      // 開始度数は0 or 1（安定）
-      const deg0 = (this._rng() < 0.5) ? 0 : 1;
+    if (this._rng() < p){
+      // 開始度数（0〜2）で雰囲気が変わるが、怖くならない範囲
+      const deg0 = Math.floor(this._rng()*3);
 
-      tpl.forEach((d, i) => {
-        if (d === null) return;
-
+      pat.forEach((d, i) => {
         const deg = clamp(deg0 + d, 0, scale.length - 1);
         let midi = base + scale[deg];
 
-        // ✅ 上限A4（69）までに固定（高音禁止）
-        midi = Math.min(midi, 69);
+        // 高すぎ禁止：B4(71)まで
+        midi = Math.min(midi, 71);
 
-        const t0 = now + i * this._e;
-        this._tone(midi, t0, this._e * 0.95);
+        const t0 = now + i * this._step;
+        this._tone(midi, t0, this._step * 0.92, 0.020);
       });
     }
 
-    // 次：2小節に1回（間を作る）
-    this._timers.push(setTimeout(() => this._playMelodyLoop(), (this._bar * 2) * 1000));
+    // 次は1小節ごと（音楽感）
+    this._timers.push(setTimeout(() => this._playArpLoop(env), this._bar * 1000));
   }
 
-  _tone(midi, t0, dur){
+  // たまに “歌っぽい”モチーフ（短い、明るい、怖くならない）
+  _maybeMotifLoop(env){
+    const scale = [0,2,4,7,9]; // 安全固定（モチーフは必ずペンタ）
+    const base = this._melBase(env) + 2; // ちょい上で明るく
+    const now = this.ctx.currentTime;
+
+    let p = 0.18;
+    if (env.time === "morning") p += 0.06;
+    if (env.time === "day") p += 0.04;
+    if (env.weather === "rain") p -= 0.05;
+    if (env.time === "late") p -= 0.08;
+    p = clamp(p, 0.08, 0.28);
+
+    if (this._rng() < p){
+      // 8音モチーフ（隣接中心）
+      const tpl = [0,1,2,1, 0,1,0,0];
+      const deg0 = Math.floor(this._rng()*2);
+
+      tpl.forEach((d, i) => {
+        const deg = clamp(deg0 + d, 0, scale.length - 1);
+        let midi = base + scale[deg];
+        midi = Math.min(midi, 71);
+
+        const t0 = now + i * (this._step * 0.95);
+        this._tone(midi, t0, this._step * 0.90, 0.022);
+      });
+    }
+
+    // 12〜22秒ごと
+    const next = 12000 + this._rng()*10000;
+    this._timers.push(setTimeout(() => this._maybeMotifLoop(env), next));
+  }
+
+  _tone(midi, t0, dur, peak=0.02){
     const o = this.ctx.createOscillator();
-    o.type = "sine"; // ✅ 倍音なし
+    o.type = "sine"; // 安全（刺さらない）
 
     o.frequency.setValueAtTime(midiToHz(midi), t0);
 
     const g = this.ctx.createGain();
-    // ✅ なめらか（急アタック禁止）
     g.gain.setValueAtTime(0.00001, t0);
-    g.gain.exponentialRampToValueAtTime(0.020, t0 + 0.18);
-    g.gain.setTargetAtTime(0.00001, t0 + dur, 0.20);
+    // なめらか、でも暗すぎない
+    g.gain.exponentialRampToValueAtTime(peak, t0 + 0.10);
+    g.gain.setTargetAtTime(0.00001, t0 + dur, 0.14);
 
     o.connect(g);
-    g.connect(this.melBus);
+    g.connect(this.arpBus);
 
     o.start(t0);
-    o.stop(t0 + dur + 0.40);
+    o.stop(t0 + dur + 0.30);
   }
 
   _tapBeep(){
@@ -354,7 +463,7 @@ class ZeroFearEngine{
     o.type = "sine";
     o.frequency.value = 440;
     g.gain.setValueAtTime(0.0, now);
-    g.gain.linearRampToValueAtTime(0.0006, now + 0.01);
+    g.gain.linearRampToValueAtTime(0.0008, now + 0.01);
     g.gain.linearRampToValueAtTime(0.0, now + 0.03);
     o.connect(g);
     g.connect(this.comp);
