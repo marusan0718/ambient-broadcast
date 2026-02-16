@@ -3,104 +3,142 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Ambient Weather (No Overlap Harmony, Smooth Tail)</title>
+  <title>Ambient Weather</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/15.3.5/Tone.js"></script>
 </head>
 
-<body class="min-h-screen transition-colors duration-700 bg-gradient-to-b from-slate-100 to-slate-300">
-  <main class="min-h-screen flex items-center justify-center p-6">
-    <div class="w-full max-w-xl rounded-3xl bg-white/70 backdrop-blur shadow-xl border border-white/60 p-6">
-      <header class="flex items-start justify-between gap-4">
-        <div>
-          <h1 class="text-xl font-semibold tracking-tight">Ambient Weather</h1>
-          <p class="text-sm text-slate-600">和音：重なりなし＆最後まで自然に減衰（抑揚）／ きらめき：細かいDelay＋Pan</p>
-          <p id="countdown" class="mt-2 text-xs text-slate-500">次の更新まで —</p>
-        </div>
-
-        <div class="flex gap-2">
-          <button id="btnRefresh" class="px-3 py-2 rounded-xl text-sm bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.99]">
-            更新
-          </button>
-          <button id="btnToggle" class="px-3 py-2 rounded-xl text-sm bg-emerald-600 text-white hover:bg-emerald-500 active:scale-[0.99]">
-            Start
-          </button>
-        </div>
-      </header>
-
-      <section class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div class="rounded-2xl bg-white/70 border border-slate-200 p-4">
-          <div class="text-xs text-slate-500">天気</div>
-          <div id="weatherText" class="mt-1 text-lg font-medium">—</div>
-          <div class="mt-2 text-xs text-slate-500">天気コード: <span id="weatherCode">—</span></div>
-        </div>
-
-        <div class="rounded-2xl bg-white/70 border border-slate-200 p-4">
-          <div class="text-xs text-slate-500">風速</div>
-          <div class="mt-1 text-lg font-medium"><span id="windSpeed">—</span> m/s</div>
-          <div class="mt-2 text-xs text-slate-500">発音密度(目安): <span id="density">—</span></div>
-        </div>
-
-        <div class="sm:col-span-2 rounded-2xl bg-white/70 border border-slate-200 p-4">
-          <div class="text-xs text-slate-500">ステータス</div>
-          <div id="status" class="mt-1 text-sm text-slate-700">待機中（Startで音が鳴る）</div>
-
-          <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+<body class="min-h-screen text-slate-900">
+  <main class="min-h-screen flex items-center justify-center p-5 sm:p-8">
+    <div class="w-full max-w-xl">
+      <!-- Card -->
+      <div class="rounded-[28px] border border-white/70 bg-white/70 backdrop-blur-xl shadow-[0_20px_60px_rgba(15,23,42,0.10)] overflow-hidden">
+        <!-- Header -->
+        <div class="px-6 sm:px-8 pt-7 pb-5">
+          <div class="flex items-start justify-between gap-3">
             <div>
-              <div class="text-xs text-slate-500 mb-1">季節</div>
-              <select id="seasonSel" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                <option value="auto">Auto</option>
-                <option value="spring">春</option>
-                <option value="summer">夏</option>
-                <option value="autumn">秋</option>
-                <option value="winter">冬</option>
-              </select>
+              <div class="inline-flex items-center gap-2 rounded-full bg-white/80 border border-slate-200 px-3 py-1 text-xs text-slate-600">
+                <span id="dot" class="inline-block size-2 rounded-full bg-slate-400"></span>
+                <span id="modeText">Ready</span>
+              </div>
+              <h1 class="mt-3 text-2xl font-semibold tracking-tight">Ambient Weather</h1>
+              <p class="mt-1 text-sm text-slate-600">自然に馴染む、明るいアンビエント</p>
             </div>
-            <div>
-              <div class="text-xs text-slate-500 mb-1">時間</div>
-              <select id="timeSel" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                <option value="auto">Auto</option>
-                <option value="morning">朝</option>
-                <option value="day">昼</option>
-                <option value="evening">夕</option>
-                <option value="night">夜</option>
-                <option value="late">深夜</option>
-              </select>
-            </div>
-            <div>
-              <div class="text-xs text-slate-500 mb-1">天気</div>
-              <select id="weatherSel" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
-                <option value="auto">Auto</option>
-                <option value="clear">晴れ</option>
-                <option value="rain">雨</option>
-                <option value="other">その他</option>
-              </select>
+
+            <div class="text-right">
+              <div class="text-xs text-slate-500">自動更新</div>
+              <div id="countdown" class="mt-1 text-sm font-medium text-slate-700 tabular-nums">—</div>
             </div>
           </div>
 
-          <details class="mt-4">
-            <summary class="cursor-pointer text-sm text-slate-700 select-none">位置情報が使えない場合（手入力）</summary>
-            <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <input id="lat" class="rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="lat (例: 35.681)" />
-              <input id="lon" class="rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="lon (例: 139.767)" />
-              <button id="btnUseManual" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800">
-                この座標で取得
-              </button>
+          <!-- Big button -->
+          <button id="btnToggle"
+            class="mt-5 w-full rounded-3xl px-5 py-6 sm:py-7 transition active:scale-[0.99]
+                   bg-slate-900 text-white hover:bg-slate-800
+                   shadow-[0_18px_40px_rgba(15,23,42,0.22)]">
+            <div class="flex items-center justify-center gap-4">
+              <div class="grid place-items-center size-12 rounded-2xl bg-white/10 border border-white/15">
+                <svg id="iconSvg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" class="opacity-95">
+                  <path d="M8 5v14l11-7z"></path>
+                </svg>
+              </div>
+              <div class="text-left">
+                <div id="btnLabel" class="text-xl font-semibold">Start</div>
+                <div id="btnSub" class="text-xs text-white/75">タップで再生</div>
+              </div>
             </div>
-          </details>
+          </button>
 
-          <div class="mt-4 rounded-2xl bg-white/60 border border-slate-200 p-3">
-            <div class="text-xs text-slate-500">和音設定</div>
-            <div class="mt-1 text-sm text-slate-700">
-              ✅ 重なりなし（必ず終わってから次へ）／ ✅ 最後が切れない（和音ごとにGain分離）
+          <!-- Status line (simple) -->
+          <div class="mt-4 text-sm text-slate-700">
+            <span class="text-slate-500">状態：</span><span id="status">待機中（Startで音が鳴る）</span>
+          </div>
+
+          <!-- Minimal metrics -->
+          <div class="mt-3 grid grid-cols-2 gap-3">
+            <div class="rounded-2xl bg-white/75 border border-slate-200 p-4">
+              <div class="text-xs text-slate-500">天気</div>
+              <div id="weatherText" class="mt-1 text-base font-medium">—</div>
+              <div class="mt-2 text-[11px] text-slate-500">コード: <span id="weatherCode">—</span></div>
+            </div>
+            <div class="rounded-2xl bg-white/75 border border-slate-200 p-4">
+              <div class="text-xs text-slate-500">風速</div>
+              <div class="mt-1 text-base font-medium"><span id="windSpeed">—</span> m/s</div>
+              <div class="mt-2 text-[11px] text-slate-500">密度: <span id="density">—</span></div>
             </div>
           </div>
         </div>
-      </section>
 
-      <footer class="mt-5 text-xs text-slate-500">
-        Open-Meteo（キー不要）で現在天気を取得。Tone.jsでリアルタイム生成。5分ごと自動更新。
-      </footer>
+        <!-- Footer actions -->
+        <div class="border-t border-white/70 bg-white/55">
+          <div class="px-6 sm:px-8 py-4 flex items-center justify-between gap-3">
+            <button id="btnRefresh"
+              class="px-4 py-2 rounded-2xl text-sm bg-white/80 border border-slate-200 hover:bg-white active:scale-[0.99]">
+              更新
+            </button>
+
+            <details class="group">
+              <summary class="list-none cursor-pointer select-none px-4 py-2 rounded-2xl text-sm bg-white/80 border border-slate-200 hover:bg-white active:scale-[0.99]">
+                設定
+              </summary>
+
+              <div class="mt-3 w-[min(420px,calc(100vw-3rem))] rounded-3xl bg-white/95 border border-slate-200 shadow-xl p-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <div class="text-xs text-slate-500 mb-1">季節</div>
+                    <select id="seasonSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                      <option value="auto">Auto</option>
+                      <option value="spring">春</option>
+                      <option value="summer">夏</option>
+                      <option value="autumn">秋</option>
+                      <option value="winter">冬</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div class="text-xs text-slate-500 mb-1">時間</div>
+                    <select id="timeSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                      <option value="auto">Auto</option>
+                      <option value="morning">朝</option>
+                      <option value="day">昼</option>
+                      <option value="evening">夕</option>
+                      <option value="night">夜</option>
+                      <option value="late">深夜</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div class="text-xs text-slate-500 mb-1">天気</div>
+                    <select id="weatherSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                      <option value="auto">Auto</option>
+                      <option value="clear">晴れ</option>
+                      <option value="rain">雨</option>
+                      <option value="other">その他</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="mt-4">
+                  <div class="text-xs text-slate-500 mb-2">位置情報が使えない場合（手入力）</div>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <input id="lat" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" placeholder="lat (例: 35.681)" />
+                    <input id="lon" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" placeholder="lon (例: 139.767)" />
+                    <button id="btnUseManual" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800 active:scale-[0.99]">
+                      この座標で取得
+                    </button>
+                  </div>
+                </div>
+
+                <div class="mt-3 text-[11px] text-slate-500">
+                  変更は即反映（再生中は音の雰囲気が更新されるよ）
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 text-center text-xs text-slate-500">
+        背景は“白のニュアンス”で時間帯に合わせて変化（濃い色なし）
+      </div>
     </div>
   </main>
 
@@ -180,18 +218,20 @@
   function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
   function setStatus(msg) { document.getElementById("status").textContent = msg; }
 
-  function applyBackground(cat, time){
-    document.body.classList.remove(
-      "bg-gradient-to-b",
-      "from-amber-50","to-amber-200",
-      "from-slate-100","to-slate-300",
-      "from-slate-900","to-slate-950"
-    );
-    document.body.classList.add("bg-gradient-to-b");
-    const isNight = (time === "night" || time === "late");
-    if (cat === "clear" && !isNight) document.body.classList.add("from-amber-50","to-amber-200");
-    else if (cat === "rain" || isNight) document.body.classList.add("from-slate-900","to-slate-950");
-    else document.body.classList.add("from-slate-100","to-slate-300");
+  // ✅ ここが今回の主役：時間帯ごとに“白の表情”だけ変える
+  function applyWhiteByTime(time){
+    // ぜんぶ白系。夜でも黒にしない。
+    // morning: 青白い朝 / day: まっ白 / evening: 夕日の白 / night: ひんやり白
+    const map = {
+      morning: ["from-sky-50",   "via-white", "to-slate-100"],
+      day:     ["from-white",    "via-white", "to-slate-100"],
+      evening: ["from-amber-50", "via-white", "to-rose-100"],
+      night:   ["from-slate-50", "via-white", "to-slate-200"],
+      late:    ["from-slate-50", "via-white", "to-slate-200"],
+    };
+    const [a,b,c] = map[time] || map.day;
+
+    document.body.className = "min-h-screen text-slate-900 bg-gradient-to-b " + a + " " + b + " " + c;
   }
 
   function windToIntervalSeconds(wind){
@@ -213,40 +253,31 @@
   }
 
   // =========================
-  // Music
+  // Music (維持)
   // =========================
   let isRunning = false;
   let reverb, filter;
 
-  // Sparkle: Delay + Pan
   let sparkle, sparkleDelay, sparklePanner;
-
-  // Birds
   let bird, birdFilter, birdTremolo;
 
-  // Loops/Scheduler
   let sparkleLoop, birdLoop;
   let chordEventId = null;
 
   let lastWeather = { code: 0, wind: 0 };
   let lastRoot = null;
 
-  // ====== Harmony (No overlap) ======
-  // さらに長く：ここは好みで変えてOK
   const HARM_PLAY_MIN = 26.0;
   const HARM_PLAY_MAX = 52.0;
-
-  // 次の和音までの“間”は少し残す（重なりなし）
-  const GAP_MIN = 4.0;
-  const GAP_MAX = 10.0;
+  const GAP_MIN = 3.0;
+  const GAP_MAX = 8.0;
 
   function ensureAudioGraph(){
     if (sparkle) return;
 
     reverb = new Tone.Reverb({ decay: 10.5, wet: 0.30 }).toDestination();
-    filter = new Tone.Filter({ type: "lowpass", frequency: 1600, rolloff: -12 }).connect(reverb);
+    filter = new Tone.Filter({ type: "lowpass", frequency: 1800, rolloff: -12 }).connect(reverb);
 
-    // Sparkle
     sparkleDelay = new Tone.FeedbackDelay({
       delayTime: "32n",
       feedback: 0.22,
@@ -262,7 +293,6 @@
     }).connect(sparkleDelay);
     sparkle.volume.value = -12;
 
-    // Birds
     birdTremolo = new Tone.Tremolo({ frequency: 9, depth: 0.6, wet: 1.0 }).start();
     birdFilter = new Tone.Filter({ type: "bandpass", frequency: 2200, Q: 6 });
     bird = new Tone.Synth({
@@ -313,13 +343,14 @@
     return usePent ? (pent[key] || pent["C"]) : (major[key] || major["C"]);
   }
 
-  function randomBetween(min, max){
-    return min + Math.random() * (max - min);
-  }
+  function randomBetween(min, max){ return min + Math.random() * (max - min); }
 
   function applyParams(){
     const env = getEnv(lastWeather);
     const key = keyFromSeason(env.season);
+
+    // 背景（白トーン）を時間で決定
+    applyWhiteByTime(env.time);
 
     let bpm = 66;
     if (env.time === "morning") bpm = 74;
@@ -329,16 +360,11 @@
     if (env.time === "late") bpm = 54;
     Tone.Transport.bpm.value = bpm;
 
-    let cutoff = 1600;
+    let cutoff = 1800;
     let wet = 0.30;
-    if (env.weatherCat === "clear") { cutoff = 2500; wet = 0.20; }
-    if (env.weatherCat === "other") { cutoff = 1600; wet = 0.32; }
-    if (env.weatherCat === "rain")  { cutoff = 1100; wet = 0.44; }
-
-    if (env.time === "night" || env.time === "late") {
-      cutoff -= 200;
-      wet += 0.03;
-    }
+    if (env.weatherCat === "clear") { cutoff = 2600; wet = 0.20; }
+    if (env.weatherCat === "other") { cutoff = 1800; wet = 0.32; }
+    if (env.weatherCat === "rain")  { cutoff = 1300; wet = 0.44; }
 
     cutoff = clamp(cutoff, 900, 3200);
     wet = clamp(wet, 0.18, 0.60);
@@ -350,13 +376,17 @@
       birdFilter.frequency.value = (env.weatherCat === "rain") ? 1900 : 2300;
     }
 
-    applyBackground(env.weatherCat, env.time);
-    setStatus(`再生中：${env.season}/${env.time}/${env.weatherCat}（Key:${key} BPM:${bpm}）`);
-
+    setStatus(`再生中：${env.season}/${env.time}/${env.weatherCat}（Key:${key}）`);
     return { ...env, key };
   }
 
-  // ====== IMPORTANT: create a dedicated synth+gain per chord (no cut tail) ======
+  function clearHarmonyScheduler(){
+    if (chordEventId !== null){
+      try { Tone.Transport.clear(chordEventId); } catch(e){}
+      chordEventId = null;
+    }
+  }
+
   function playOneHarmony(startTime, r){
     const choices = chordChoicesForKey(r.key);
 
@@ -367,18 +397,13 @@
     const playDur = randomBetween(HARM_PLAY_MIN, HARM_PLAY_MAX);
     const gapDur  = randomBetween(GAP_MIN, GAP_MAX);
 
-    // chord-specific gain (so next chord won't overwrite ramps)
     const chordGain = new Tone.Gain(0.000001).connect(filter);
-
-    // chord-specific pad
     const chordPad = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: "sine" },
-      envelope: { attack: 2.2, decay: 0.6, sustain: 0.82, release: 18.0 } // tail longer
+      envelope: { attack: 2.2, decay: 0.6, sustain: 0.82, release: 18.0 }
     }).connect(chordGain);
-
     chordPad.volume.value = -15;
 
-    // Cresc -> Dim (per chord)
     let peak = 0.22 + Math.random() * 0.30;
     if (r.time === "night" || r.time === "late") peak *= 0.75;
     if (r.weatherCat === "rain") peak *= 0.85;
@@ -394,14 +419,12 @@
 
     chordPad.triggerAttackRelease(triad(root), playDur, startTime, 0.72);
 
-    // dispose after tail ends (release extra time)
     const disposeAt = tEnd + 22.0;
     Tone.Transport.scheduleOnce(() => {
       chordPad.dispose();
       chordGain.dispose();
     }, disposeAt);
 
-    // schedule next chord AFTER this chord ends + gap (no overlap)
     const nextTime = startTime + playDur + gapDur;
     chordEventId = Tone.Transport.scheduleOnce((t) => {
       const rr = applyParams();
@@ -409,25 +432,17 @@
     }, nextTime);
   }
 
-  function clearHarmonyScheduler(){
-    if (chordEventId !== null){
-      try { Tone.Transport.clear(chordEventId); } catch(e){}
-      chordEventId = null;
-    }
-  }
-
-  // ====== Sparkle: random fine delay + pan per hit ======
   function pickFineDelayTimeSeconds(r){
     const night = (r.time === "night" || r.time === "late");
     const rain  = (r.weatherCat === "rain");
 
-    const shortSet = ["64n","32n","16t","24n"]; // さらに細かく
+    const shortSet = ["64n","32n","16t","24n"];
     const midSet   = ["32n","24n","16n","16t"];
     const set = (night || rain) ? midSet : shortSet;
 
     const base = set[Math.floor(Math.random() * set.length)];
     const baseSec = Tone.Time(base).toSeconds();
-    const jitter = (Math.random() * 0.05) - 0.025; // ±25ms
+    const jitter = (Math.random() * 0.05) - 0.025;
     return clamp(baseSec + jitter, 0.02, 0.25);
   }
 
@@ -437,12 +452,9 @@
     clearHarmonyScheduler();
 
     const r = applyParams();
-
-    // Harmony (no overlap)
     const startAt = Tone.Transport.seconds + 0.1;
     chordEventId = Tone.Transport.scheduleOnce((t) => playOneHarmony(t, r), startAt);
 
-    // Sparkle loop
     const sparkleInterval = 0.58;
     sparkleLoop = new Tone.Loop((time) => {
       const scale = sparkleScale(r.key, r.weatherCat, r.time);
@@ -473,7 +485,6 @@
       }
     }, sparkleInterval).start(0);
 
-    // Birds
     function birdChance(){
       let base = 0.05;
       if (r.time === "morning") base = 0.12;
@@ -509,15 +520,39 @@
   }
 
   function updateUI({ code, wind }){
-    const cat = weatherCategoryFromCode(code);
     document.getElementById("weatherText").textContent = describeWeather(code);
     document.getElementById("weatherCode").textContent = String(code);
     document.getElementById("windSpeed").textContent = wind.toFixed(1);
 
     const interval = windToIntervalSeconds(wind);
     document.getElementById("density").textContent = (1 / interval).toFixed(1) + " notes/sec";
+  }
 
-    applyBackground(cat, autoTimeBlock());
+  function setButtonState(){
+    const dot = document.getElementById("dot");
+    const modeText = document.getElementById("modeText");
+    const btn = document.getElementById("btnToggle");
+    const label = document.getElementById("btnLabel");
+    const sub = document.getElementById("btnSub");
+    const iconSvg = document.getElementById("iconSvg");
+
+    if (isRunning){
+      dot.className = "inline-block size-2 rounded-full bg-emerald-500";
+      modeText.textContent = "Playing";
+      btn.classList.remove("bg-slate-900","hover:bg-slate-800");
+      btn.classList.add("bg-rose-600","hover:bg-rose-500");
+      label.textContent = "Stop";
+      sub.textContent = "タップで停止";
+      iconSvg.innerHTML = '<path d="M6 6h5v12H6zM13 6h5v12h-5z"></path>';
+    } else {
+      dot.className = "inline-block size-2 rounded-full bg-slate-400";
+      modeText.textContent = "Ready";
+      btn.classList.remove("bg-rose-600","hover:bg-rose-500");
+      btn.classList.add("bg-slate-900","hover:bg-slate-800");
+      label.textContent = "Start";
+      sub.textContent = "タップで再生";
+      iconSvg.innerHTML = '<path d="M8 5v14l11-7z"></path>';
+    }
   }
 
   async function start(){
@@ -525,26 +560,18 @@
     await Tone.start();
     Tone.Transport.start();
     rebuildLoops();
-
     isRunning = true;
-    document.getElementById("btnToggle").textContent = "Stop";
-    document.getElementById("btnToggle").classList.remove("bg-emerald-600","hover:bg-emerald-500");
-    document.getElementById("btnToggle").classList.add("bg-rose-600","hover:bg-rose-500");
+    setButtonState();
   }
 
   function stop(){
     isRunning = false;
-
     clearHarmonyScheduler();
     if (sparkleLoop) { sparkleLoop.stop(); sparkleLoop.dispose(); sparkleLoop = null; }
     if (birdLoop) { birdLoop.stop(); birdLoop.dispose(); birdLoop = null; }
-
     Tone.Transport.stop();
-
-    document.getElementById("btnToggle").textContent = "Start";
-    document.getElementById("btnToggle").classList.remove("bg-rose-600","hover:bg-rose-500");
-    document.getElementById("btnToggle").classList.add("bg-emerald-600","hover:bg-emerald-500");
     setStatus("停止中（Startで再開）");
+    setButtonState();
   }
 
   async function refreshWeather(auto=true){
@@ -568,9 +595,12 @@
 
       nextUpdateAt = Date.now() + AUTO_UPDATE_MS;
 
+      // 背景の更新（Auto時間or固定時間の選択を反映）
+      applyParams();
+
       if (isRunning){
         rebuildLoops();
-        setStatus("再生中（天気/選択を反映して更新）");
+        setStatus("再生中（更新反映）");
       } else {
         setStatus("取得OK（Startで音が鳴る）");
       }
@@ -581,16 +611,15 @@
   }
 
   function tick(){
-    const now = Date.now();
-    const remain = Math.max(0, nextUpdateAt - now);
+    const remain = Math.max(0, nextUpdateAt - Date.now());
     const mm = String(Math.floor(remain/60000)).padStart(2,"0");
     const ss = String(Math.floor((remain%60000)/1000)).padStart(2,"0");
-    document.getElementById("countdown").textContent = `次の更新まで ${mm}:${ss}`;
+    document.getElementById("countdown").textContent = `${mm}:${ss}`;
     if (remain === 0) refreshWeather(true);
     requestAnimationFrame(tick);
   }
 
-  // UI Events
+  // UI events
   document.getElementById("btnToggle").addEventListener("click", async () => {
     if (!isRunning) await start();
     else stop();
@@ -601,13 +630,16 @@
 
   ["seasonSel","timeSel","weatherSel"].forEach(id => {
     document.getElementById(id).addEventListener("change", () => {
+      // 背景は即反映（時間の白トーン）
+      applyParams();
+      // 再生中なら音も更新
       if (isRunning) rebuildLoops();
-      else applyParams();
     });
   });
 
   // init
-  applyBackground("other", autoTimeBlock());
+  setButtonState();
+  applyWhiteByTime(autoTimeBlock());
   refreshWeather(true);
   tick();
 </script>
