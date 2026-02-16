@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Ambient Weather (Slow Harmony + Birds)</title>
+  <title>Ambient Weather (Breathing Harmony w/ Cresc+Dim + Sparkle + Birds)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/15.3.5/Tone.js"></script>
 </head>
@@ -14,7 +14,7 @@
       <header class="flex items-start justify-between gap-4">
         <div>
           <h1 class="text-xl font-semibold tracking-tight">Ambient Weather</h1>
-          <p class="text-sm text-slate-600">季節・時間・天気・風に同期（ゆっくり和音 + きらめきDelay + 鳥）</p>
+          <p class="text-sm text-slate-600">和音に抑揚（クレッシェンド→ディミネンド）＋長い余白＋きらめきDelay＋鳥</p>
           <p id="countdown" class="mt-2 text-xs text-slate-500">次の更新まで —</p>
         </div>
 
@@ -89,8 +89,18 @@
             </div>
           </details>
 
+          <div class="mt-4 rounded-2xl bg-white/60 border border-slate-200 p-3">
+            <div class="text-xs text-slate-500">抑揚（和音）</div>
+            <div class="mt-1 text-sm text-slate-700">
+              和音は 1回ごとに「クレッシェンド→ディミネンド」し、余白（無音）も長めにランダムで入ります。
+            </div>
+            <div class="mt-2 text-xs text-slate-500">
+              ※ もっと “波” を大きくしたいときは、コード内の <span class="font-mono">PEAK</span> を上げてね。
+            </div>
+          </div>
+
           <div class="mt-4 text-xs text-slate-500">
-            ※ “怖さゼロ”固定：メジャー/メジャーペンタのみ。和音はゆっくり長く、鳥は朝昼にランダムで入ります。
+            ※ “怖さゼロ”固定：メジャー/メジャーペンタのみ。低音は避けています。
           </div>
         </div>
       </section>
@@ -210,31 +220,40 @@
   }
 
   // =========================
-  // Music (Tone.js): Slow Harmony + Sparkle Delay + Birds
+  // Music (Tone.js): Breathing Harmony w/ Cresc+Dim + Sparkle Delay + Birds
   // =========================
   let isRunning = false;
 
-  let reverb, filter, pad, sparkle, sparkleDelay;
+  let reverb, filter, pad, padGain, sparkle, sparkleDelay;
   let bird, birdFilter, birdTremolo;
 
-  let triadLoop, sparkleLoop, birdLoop;
+  let sparkleLoop, birdLoop;
+
+  // Breathing scheduler ID
+  let chordEventId = null;
   let lastWeather = { code: 0, wind: 0 };
+
+  // ====== Tuning knobs (longer ambience) ======
+  const PLAY_MIN = 5.0;     // chord play min seconds
+  const PLAY_MAX = 11.0;    // chord play max seconds
+  const SILENCE_MIN = 10.0; // silence min seconds
+  const SILENCE_MAX = 22.0; // silence max seconds
 
   function ensureAudioGraph(){
     if (pad) return;
 
-    // Master space
-    reverb = new Tone.Reverb({ decay: 5.2, wet: 0.26 }).toDestination();
+    reverb = new Tone.Reverb({ decay: 6.2, wet: 0.26 }).toDestination();
     filter = new Tone.Filter({ type: "lowpass", frequency: 1600, rolloff: -12 }).connect(reverb);
 
-    // Pad (slow triads)
+    // Gain for crescendo/dim automation (click-safe)
+    padGain = new Tone.Gain(0.0001).connect(filter);
+
     pad = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: "sine" },
-      envelope: { attack: 0.65, decay: 0.25, sustain: 0.72, release: 3.8 }
-    }).connect(filter);
+      envelope: { attack: 0.85, decay: 0.25, sustain: 0.75, release: 4.6 }
+    }).connect(padGain);
     pad.volume.value = -15;
 
-    // Sparkle delay
     sparkleDelay = new Tone.FeedbackDelay({
       delayTime: "16n",
       feedback: 0.22,
@@ -243,19 +262,16 @@
 
     sparkle = new Tone.Synth({
       oscillator: { type: "sine" },
-      envelope: { attack: 0.01, decay: 0.12, sustain: 0.0, release: 1.1 }
+      envelope: { attack: 0.01, decay: 0.12, sustain: 0.0, release: 1.2 }
     }).connect(sparkleDelay);
     sparkle.volume.value = -12;
 
-    // Bird (synthetic chirps)
     birdTremolo = new Tone.Tremolo({ frequency: 9, depth: 0.6, wet: 1.0 }).start();
     birdFilter = new Tone.Filter({ type: "bandpass", frequency: 2200, Q: 6 });
-
     bird = new Tone.Synth({
       oscillator: { type: "sine" },
-      envelope: { attack: 0.005, decay: 0.08, sustain: 0.0, release: 0.14 }
+      envelope: { attack: 0.005, decay: 0.08, sustain: 0.0, release: 0.16 }
     });
-
     bird.chain(birdTremolo, birdFilter, reverb);
     bird.volume.value = -20;
   }
@@ -265,7 +281,6 @@
     return [ r.toNote(), r.transpose(4).toNote(), r.transpose(7).toNote() ];
   }
 
-  // Key by season (bright keys)
   function keyFromSeason(season){
     if (season === "spring") return "C";
     if (season === "summer") return "D";
@@ -274,7 +289,6 @@
     return "C";
   }
 
-  // Sparkle scale (major or major pentatonic, avoiding low)
   function sparkleScale(key, weatherCat, time){
     const major = {
       "C":  ["C5","D5","E5","F5","G5","A5","B5","C6"],
@@ -296,34 +310,31 @@
     const env = getEnv(lastWeather);
     const key = keyFromSeason(env.season);
 
-    // Tempo
-    let bpm = 74;
-    if (env.time === "morning") bpm = 82;
-    if (env.time === "day") bpm = 86;
-    if (env.time === "evening") bpm = 76;
-    if (env.time === "night") bpm = 68;
-    if (env.time === "late") bpm = 62;
+    let bpm = 70;
+    if (env.time === "morning") bpm = 78;
+    if (env.time === "day") bpm = 82;
+    if (env.time === "evening") bpm = 72;
+    if (env.time === "night") bpm = 64;
+    if (env.time === "late") bpm = 58;
     Tone.Transport.bpm.value = bpm;
 
-    // Tone color
     let cutoff = 1600;
     let wet = 0.26;
-    if (env.weatherCat === "clear") { cutoff = 2200; wet = 0.20; }
+    if (env.weatherCat === "clear") { cutoff = 2400; wet = 0.20; }
     if (env.weatherCat === "other") { cutoff = 1600; wet = 0.28; }
-    if (env.weatherCat === "rain")  { cutoff = 1100; wet = 0.36; }
+    if (env.weatherCat === "rain")  { cutoff = 1100; wet = 0.40; }
 
     if (env.time === "night" || env.time === "late") {
-      cutoff -= 180;
+      cutoff -= 200;
       wet += 0.03;
     }
 
-    cutoff = clamp(cutoff, 900, 2700);
-    wet = clamp(wet, 0.18, 0.42);
+    cutoff = clamp(cutoff, 900, 3000);
+    wet = clamp(wet, 0.18, 0.48);
 
     filter.frequency.value = cutoff;
     reverb.wet.value = wet;
 
-    // Sparkle delay changes with env (safe)
     if (sparkleDelay){
       const night = (env.time === "night" || env.time === "late");
       const rain  = (env.weatherCat === "rain");
@@ -334,7 +345,6 @@
       });
     }
 
-    // Bird color slightly changes
     if (birdFilter){
       birdFilter.frequency.value = (env.weatherCat === "rain") ? 1900 : 2300;
     }
@@ -345,100 +355,138 @@
     return { ...env, key };
   }
 
-  function rebuildLoops(){
-    // clear
-    if (triadLoop) { triadLoop.dispose(); triadLoop = null; }
-    if (sparkleLoop) { sparkleLoop.dispose(); sparkleLoop = null; }
-    if (birdLoop) { birdLoop.dispose(); birdLoop = null; }
+  // ====== breathing chord scheduler with crescendo/dim ======
+  let lastRoot = null;
 
-    const r = applyParams();
-
-    // ===== Harmony choices (more variety, still "bright") =====
-    // Use I, ii, iii, IV, V, vi roots, but we ALWAYS render major triads (brightness lock).
-    // This increases harmonic variety without introducing minor "fear".
-    const triadChoicesByKey = {
+  function chordChoicesForKey(key){
+    // “怖さゼロ”固定：根音は増やすが、三和音は全部メジャーで鳴らす
+    const map = {
       "C":  ["C4","D4","E4","F4","G4","A4"],
       "D":  ["D4","E4","F#4","G4","A4","B4"],
       "Eb": ["Eb4","F4","G4","Ab4","Bb4","C5"],
       "A":  ["A3","B3","C#4","D4","E4","F#4"]
     };
-    const choices = triadChoicesByKey[r.key] || triadChoicesByKey["C"];
+    return map[key] || map["C"];
+  }
 
-    // ===== Slow chord changes =====
-    // Base interval ~4.8s; wind affects it slightly (not too much)
-    const windFactor = clamp(1.25 - (clamp(lastWeather.wind,0,15)/15)*0.35, 0.90, 1.25);
-    const triadInterval = clamp(4.8 * windFactor, 3.6, 6.0);
+  function randomBetween(min, max){
+    return min + Math.random() * (max - min);
+  }
 
-    // Long duration (note value) ~82% of interval
-    const chordDur = clamp(triadInterval * 0.82, 2.8, 5.2);
+  function clearBreathingScheduler(){
+    if (chordEventId !== null){
+      try { Tone.Transport.clear(chordEventId); } catch(e){}
+      chordEventId = null;
+    }
+  }
 
-    let lastRoot = null;
-    triadLoop = new Tone.Loop((time) => {
-      let root = choices[Math.floor(Math.random() * choices.length)];
-      if (root === lastRoot) root = choices[Math.floor(Math.random() * choices.length)];
-      lastRoot = root;
+  function scheduleBreathingChord(startTime, r){
+    const choices = chordChoicesForKey(r.key);
 
-      pad.triggerAttackRelease(triad(root), chordDur, time, 0.70);
-    }, triadInterval).start(0);
+    // Long random play & silence
+    const playDur = randomBetween(PLAY_MIN, PLAY_MAX);
+    const silenceDur = randomBetween(SILENCE_MIN, SILENCE_MAX);
 
-    // ===== Sparkle =====
-    const sparkleInterval = clamp(windToIntervalSeconds(lastWeather.wind) * 1.05, 0.26, 1.05);
-    const scale = sparkleScale(r.key, r.weatherCat, r.time);
+    let root = choices[Math.floor(Math.random() * choices.length)];
+    if (root === lastRoot) root = choices[Math.floor(Math.random() * choices.length)];
+    lastRoot = root;
 
+    // ===== Crescendo -> Diminuendo (抑揚) =====
+    // Base peak (wave size). env makes it softer at night/rain.
+    let peak = 0.26 + Math.random() * 0.22; // 0.26〜0.48
+    if (r.time === "night" || r.time === "late") peak *= 0.75;
+    if (r.weatherCat === "rain") peak *= 0.85;
+
+    // where to peak (35%〜60%)
+    const upPortion = 0.35 + Math.random() * 0.25;
+    const t0 = startTime;
+    const tPeak = startTime + playDur * upPortion;
+    const tEnd = startTime + playDur;
+
+    // smooth automation (click-safe)
+    padGain.gain.cancelScheduledValues(t0);
+    padGain.gain.setValueAtTime(0.00012, t0);
+    padGain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), tPeak);
+    padGain.gain.exponentialRampToValueAtTime(0.00012, tEnd);
+
+    // Chord itself (velocity fixed, gain handles expression)
+    pad.triggerAttackRelease(triad(root), playDur, startTime, 0.72);
+
+    // Schedule next one
+    const nextTime = startTime + playDur + silenceDur;
+    chordEventId = Tone.Transport.scheduleOnce((t) => {
+      const rr = applyParams();
+      scheduleBreathingChord(t, rr);
+    }, nextTime);
+  }
+
+  function rebuildLoops(){
+    if (sparkleLoop) { sparkleLoop.dispose(); sparkleLoop = null; }
+    if (birdLoop) { birdLoop.dispose(); birdLoop = null; }
+    clearBreathingScheduler();
+
+    const r = applyParams();
+
+    // Start breathing chord
+    const startAt = Tone.Transport.seconds + 0.1;
+    chordEventId = Tone.Transport.scheduleOnce((t) => scheduleBreathingChord(t, r), startAt);
+
+    // Sparkle (gentle, with delay)
+    const baseInterval = 0.65;
     sparkleLoop = new Tone.Loop((time) => {
-      let p = 0.70;
-      if (r.weatherCat === "rain") p = 0.50;
-      if (r.time === "late") p = 0.38;
-      if (r.time === "night") p = Math.min(p, 0.50);
-      if (r.weatherCat === "clear" && (r.time === "day" || r.time === "morning")) p = 0.82;
+      const scale = sparkleScale(r.key, r.weatherCat, r.time);
+
+      let p = 0.55;
+      if (r.weatherCat === "rain") p = 0.42;
+      if (r.time === "late") p = 0.30;
+      if (r.time === "night") p = Math.min(p, 0.40);
+      if (r.weatherCat === "clear" && (r.time === "day" || r.time === "morning")) p = 0.62;
 
       if (Math.random() < p){
         const note = scale[Math.floor(Math.random() * scale.length)];
-        if (Math.random() < 0.14){
+        if (Math.random() < 0.12){
           const note2 = scale[Math.floor(Math.random() * scale.length)];
-          const dur = 0.09;
-          sparkle.triggerAttackRelease(note, dur, time, 0.45);
-          sparkle.triggerAttackRelease(note2, dur, time + 0.001, 0.35);
+          sparkle.triggerAttackRelease(note, 0.12, time, 0.42);
+          sparkle.triggerAttackRelease(note2, 0.12, time + 0.02, 0.34);
         } else {
-          sparkle.triggerAttackRelease(note, 0.09, time, 0.45);
+          sparkle.triggerAttackRelease(note, 0.12, time, 0.42);
         }
       }
-    }, sparkleInterval).start(0);
+    }, baseInterval).start(0);
 
-    // ===== Birds (random chirps) =====
+    // Birds
     function birdChance(){
-      let base = 0.06; // 6% per tick
+      let base = 0.05;
       if (r.time === "morning") base = 0.12;
       if (r.time === "day") base = 0.10;
       if (r.time === "evening") base = 0.06;
       if (r.time === "night") base = 0.02;
-      if (r.time === "late") base = 0.005;
+      if (r.time === "late") base = 0.006;
       if (r.weatherCat === "rain") base *= 0.55;
       return base;
     }
 
     function chirp(time){
-      // short up-down sweep = "chirp"
-      const base = (Math.random() < 0.5) ? 1500 : 1900;
-      const up = base + 800 + Math.random()*500;
-      const dur = 0.06 + Math.random()*0.05;
+      const base = 1450 + Math.random()*650;
+      const up = base + 900 + Math.random()*450;
+      const dur = 0.055 + Math.random()*0.06;
 
       bird.frequency.setValueAtTime(base, time);
       bird.frequency.linearRampToValueAtTime(up, time + dur);
-      bird.frequency.linearRampToValueAtTime(base + 200, time + dur + 0.03);
+      bird.frequency.linearRampToValueAtTime(base + 220, time + dur + 0.03);
 
-      bird.triggerAttackRelease("C6", dur + 0.05, time, 0.30);
+      bird.triggerAttackRelease("C6", dur + 0.06, time, 0.30);
     }
 
     birdLoop = new Tone.Loop((time) => {
       if (!bird) return;
       if (Math.random() < birdChance()){
-        const n = (Math.random() < 0.35) ? 2 : 1; // sometimes multiple
-        for (let i = 0; i < n; i++){
-          chirp(time + i * (0.12 + Math.random()*0.08));
+        const n = (Math.random() < 0.38) ? 2 : 1;
+        for (let i=0; i<n; i++){
+          chirp(time + i*(0.12 + Math.random()*0.10));
         }
       }
-    }, 2.0).start(0);
+    }, 2.4).start(0);
   }
 
   function updateUI({ code, wind }){
@@ -446,14 +494,16 @@
     document.getElementById("weatherText").textContent = describeWeather(code);
     document.getElementById("weatherCode").textContent = String(code);
     document.getElementById("windSpeed").textContent = wind.toFixed(1);
+
     const interval = windToIntervalSeconds(wind);
     document.getElementById("density").textContent = (1 / interval).toFixed(1) + " notes/sec";
+
     applyBackground(cat, autoTimeBlock());
   }
 
   async function start(){
     ensureAudioGraph();
-    await Tone.start(); // iOS
+    await Tone.start();
     Tone.Transport.start();
     rebuildLoops();
 
@@ -465,9 +515,19 @@
 
   function stop(){
     isRunning = false;
-    if (triadLoop) { triadLoop.stop(); triadLoop.dispose(); triadLoop = null; }
+
+    clearBreathingScheduler();
     if (sparkleLoop) { sparkleLoop.stop(); sparkleLoop.dispose(); sparkleLoop = null; }
     if (birdLoop) { birdLoop.stop(); birdLoop.dispose(); birdLoop = null; }
+
+    // fade out pad gain quickly
+    if (padGain){
+      const t = Tone.now();
+      padGain.gain.cancelScheduledValues(t);
+      padGain.gain.setValueAtTime(Math.max(0.00012, padGain.gain.value || 0.00012), t);
+      padGain.gain.exponentialRampToValueAtTime(0.00012, t + 0.2);
+    }
+
     Tone.Transport.stop();
 
     document.getElementById("btnToggle").textContent = "Start";
@@ -499,7 +559,7 @@
 
       if (isRunning){
         rebuildLoops();
-        setStatus("再生中（天気/風/選択を反映して更新）");
+        setStatus("再生中（天気/選択を反映して更新）");
       } else {
         setStatus("取得OK（Startで音が鳴る）");
       }
