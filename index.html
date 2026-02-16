@@ -14,7 +14,6 @@
 
   <style>
     summary::-webkit-details-marker { display:none; }
-    /* iOSのfixed + overflow対策：パネル内スクロールを“掴める”ように */
     .ios-scroll { -webkit-overflow-scrolling: touch; }
   </style>
 </head>
@@ -33,14 +32,19 @@
                 <span id="modeText">Ready</span>
               </div>
               <h1 class="mt-3 text-2xl font-semibold tracking-tight">Ambient Music</h1>
+
+              <!-- ✅ 指示： 「いまこの」から段落を分ける -->
               <p class="mt-1 text-sm text-slate-600">
                 季節、天気、風のゆらぎ。<br class="hidden sm:block">
+              </p>
+              <p class="mt-1 text-sm text-slate-600">
                 いまこの瞬間の自然と同期し、音楽を紡ぐ。
               </p>
             </div>
 
             <div class="text-right">
-              <div class="text-xs text-slate-500">自動更新</div>
+              <!-- ✅ 指示：自動更新を小さく、スマホでも1行 -->
+              <div class="text-[10px] sm:text-xs text-slate-500 whitespace-nowrap">自動更新</div>
               <div id="countdown" class="mt-1 text-sm font-medium text-slate-700 tabular-nums">—</div>
             </div>
           </div>
@@ -58,27 +62,27 @@
               </div>
               <div class="text-left">
                 <div id="btnLabel" class="text-xl font-semibold">Start</div>
-                <div id="btnSub" class="text-xs text-white/75">タップで再生（AirPlayはコントロールセンターから）</div>
+                <!-- ✅ 指示：AirPlay文言を削除 -->
+                <div id="btnSub" class="text-xs text-white/75">タップで再生</div>
               </div>
             </div>
           </button>
 
-          <!-- Status line (simple) -->
-          <div class="mt-4 text-sm text-slate-700">
-            <span class="text-slate-500">状態：</span><span id="status">待機中（Startで音が鳴る）</span>
-          </div>
+          <!-- ✅ 指示：状態表示は設定内へ → ここから削除 -->
 
           <!-- Minimal metrics -->
-          <div class="mt-3 grid grid-cols-2 gap-3">
+          <div class="mt-4 grid grid-cols-2 gap-3">
             <div class="rounded-2xl bg-white/75 border border-slate-200 p-4">
               <div class="text-xs text-slate-500">天気</div>
               <div id="weatherText" class="mt-1 text-base font-medium">—</div>
-              <div class="mt-2 text-[11px] text-slate-500">コード: <span id="weatherCode">—</span></div>
+              <!-- ✅ 指示：天気の下のコードを非表示 -->
+              <div class="hidden mt-2 text-[11px] text-slate-500">コード: <span id="weatherCode">—</span></div>
             </div>
             <div class="rounded-2xl bg-white/75 border border-slate-200 p-4">
               <div class="text-xs text-slate-500">風速</div>
               <div class="mt-1 text-base font-medium"><span id="windSpeed">—</span> m/s</div>
-              <div class="mt-2 text-[11px] text-slate-500">密度: <span id="density">—</span></div>
+              <!-- ✅ 指示：風速の下の密度を非表示 -->
+              <div class="hidden mt-2 text-[11px] text-slate-500">密度: <span id="density">—</span></div>
             </div>
           </div>
         </div>
@@ -91,7 +95,7 @@
               更新
             </button>
 
-            <!-- Settings trigger (we keep details for semantics, but panel is fixed) -->
+            <!-- Settings trigger -->
             <details id="settingsDetails" class="group">
               <summary
                 class="list-none cursor-pointer select-none px-4 py-2 rounded-2xl text-sm
@@ -105,24 +109,19 @@
         </div>
       </div>
 
-      <div class="mt-4 text-center text-xs text-slate-500">
-        AirPlay：iPhoneのコントロールセンターからHomePodへ
-      </div>
+      <!-- ✅ 指示：外枠のAirPlay文言（コントロールセンター含む）を削除 -->
     </div>
   </main>
 
-  <!-- Settings Overlay (fixed, always within viewport) -->
+  <!-- Settings Overlay -->
   <div id="settingsOverlay" class="fixed inset-0 z-50 hidden">
-    <!-- backdrop -->
     <div id="settingsBackdrop" class="absolute inset-0 bg-slate-900/10 backdrop-blur-[2px]"></div>
 
-    <!-- panel wrapper (align to bottom on mobile, center-ish on desktop) -->
     <div class="absolute inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6">
       <div
         class="w-full max-w-[520px]
                rounded-[28px] bg-white/95 border border-slate-200 shadow-2xl
                overflow-hidden">
-        <!-- header -->
         <div class="px-5 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <div class="text-sm font-semibold text-slate-800">設定</div>
           <button id="btnCloseSettings"
@@ -131,7 +130,6 @@
           </button>
         </div>
 
-        <!-- scroll area -->
         <div class="px-5 sm:px-6 py-4 max-h-[70vh] overflow-y-auto ios-scroll">
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
@@ -166,29 +164,22 @@
             </div>
           </div>
 
+          <!-- ✅ 指示：状態を設定の中へ -->
           <div class="mt-4">
-            <div class="text-xs text-slate-500 mb-2">位置情報が使えない場合（手入力）</div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <input id="lat" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" placeholder="lat (例: 35.681)" />
-              <input id="lon" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" placeholder="lon (例: 139.767)" />
-              <button id="btnUseManual" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800 active:scale-[0.99]">
-                この座標で取得
-              </button>
+            <div class="text-xs text-slate-500 mb-1">状態</div>
+            <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+              <span id="status">待機中（Startで音が鳴る）</span>
             </div>
           </div>
 
-          <div class="mt-4 flex items-center justify-between gap-3">
-            <button id="btnRefreshInSettings"
-              class="px-3 py-2 rounded-xl text-sm bg-white border border-slate-200 hover:bg-white active:scale-[0.99]">
-              いま更新
-            </button>
-            <div class="text-[11px] text-slate-500">
-              ロック画面表示：再生開始後にOS側へ情報を渡します（完全保証ではないよ）
-            </div>
+          <!-- ✅ 指示：設定内の「いま更新」を消す → ボタン行ごと削除 -->
+          <!-- ✅ 指示：位置情報が使えない場合もいらない → 手入力ブロック削除 -->
+
+          <div class="mt-4 text-[11px] text-slate-500">
+            ロック画面表示：再生開始後にOS側へ情報を渡します（完全保証ではないよ）
           </div>
         </div>
 
-        <!-- footer -->
         <div class="px-5 sm:px-6 py-3 border-t border-slate-200 text-[11px] text-slate-500">
           ヒント：外側をタップ / Esc で閉じる
         </div>
@@ -272,7 +263,6 @@
   function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
   function setStatus(msg) { document.getElementById("status").textContent = msg; }
 
-  // 白トーン背景（時間帯）
   function applyWhiteByTime(time){
     const map = {
       morning: ["from-sky-50",   "via-white", "to-slate-100"],
@@ -304,7 +294,7 @@
   }
 
   // =========================
-  // Media Session（ロック画面表示寄せ）
+  // Media Session
   // =========================
   function setMediaSessionMetadata(text){
     if (!("mediaSession" in navigator)) return;
@@ -609,8 +599,9 @@
       btn.classList.remove("bg-rose-600","hover:bg-rose-500");
       btn.classList.add("bg-slate-900","hover:bg-slate-800");
       label.textContent = "Start";
-      sub.textContent = "タップで再生（AirPlayはコントロールセンターから）";
+      sub.textContent = "タップで再生";
       iconSvg.innerHTML = '<path d="M8 5v14l11-7z"></path>';
+      setStatus("待機中（Startで音が鳴る）");
     }
     updatePlaybackState();
   }
@@ -639,15 +630,10 @@
       setStatus("天気取得中…");
       let lat, lon;
 
-      if (auto){
-        const pos = await getCurrentPosition();
-        lat = pos.coords.latitude;
-        lon = pos.coords.longitude;
-      } else {
-        lat = parseFloat(document.getElementById("lat").value);
-        lon = parseFloat(document.getElementById("lon").value);
-        if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error("lat/lon を数値で入力してね");
-      }
+      // ✅ 指示：手入力は削除したので常に自動
+      const pos = await getCurrentPosition();
+      lat = pos.coords.latitude;
+      lon = pos.coords.longitude;
 
       const { code, wind } = await fetchWeatherByCoords(lat, lon);
       lastWeather = { code, wind };
@@ -678,17 +664,15 @@
   }
 
   // =========================
-  // Settings overlay control (new)
+  // Settings overlay control
   // =========================
   const settingsDetails = document.getElementById("settingsDetails");
   const settingsOverlay = document.getElementById("settingsOverlay");
   const settingsBackdrop = document.getElementById("settingsBackdrop");
   const btnCloseSettings = document.getElementById("btnCloseSettings");
-  const btnRefreshInSettings = document.getElementById("btnRefreshInSettings");
 
   function openSettings(){
     settingsOverlay.classList.remove("hidden");
-    // detailsは見た目用なのでopen状態は戻しておく（Safari癖対策）
     settingsDetails.open = false;
     document.documentElement.classList.add("overflow-hidden");
     document.body.classList.add("overflow-hidden");
@@ -700,14 +684,12 @@
     document.body.classList.remove("overflow-hidden");
   }
 
-  // summaryクリックでオーバーレイを開く
   settingsDetails.addEventListener("toggle", () => {
     if (settingsDetails.open) openSettings();
   });
 
   btnCloseSettings.addEventListener("click", closeSettings);
   settingsBackdrop.addEventListener("click", closeSettings);
-  btnRefreshInSettings.addEventListener("click", () => refreshWeather(true));
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeSettings();
@@ -719,7 +701,6 @@
     else stop();
   });
   document.getElementById("btnRefresh").addEventListener("click", () => refreshWeather(true));
-  document.getElementById("btnUseManual").addEventListener("click", () => refreshWeather(false));
 
   ["seasonSel","timeSel","weatherSel"].forEach(id => {
     document.getElementById(id).addEventListener("change", () => {
