@@ -20,14 +20,14 @@ body{
 }
 
 .wrap{
-  width:min(520px, 92vw);
+  width:min(560px, 92vw);
   text-align:center;
 }
 
-.top{ margin-bottom:24px; }
+.top{ margin-bottom:18px; }
 .title{
   font-size:22px;
-  font-weight:600;
+  font-weight:650;
   letter-spacing:.02em;
 }
 .subtitle{
@@ -37,8 +37,8 @@ body{
 }
 
 .play{
-  width:104px;
-  height:104px;
+  width:106px;
+  height:106px;
   border-radius:999px;
   border:1px solid var(--ring);
   background:transparent;
@@ -46,7 +46,7 @@ body{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  margin:22px 0 18px;
+  margin:20px 0 16px;
   transition:transform .08s ease;
 }
 .play:active{ transform:scale(.98); }
@@ -60,7 +60,7 @@ body{
   display:flex;
   flex-direction:column;
   gap:10px;
-  margin-top:4px;
+  margin-top:6px;
 }
 
 .chips{
@@ -82,14 +82,12 @@ body{
 .chip.is-active{ background:var(--chipOn); }
 
 .status{
-  margin-top:20px;
+  margin-top:18px;
   display:flex;
   flex-direction:column;
   gap:6px;
   color:var(--muted);
   font-size:12px;
 }
-.mode, .countdown{
-  font-variant-numeric: tabular-nums;
-}
+.mode, .countdown{ font-variant-numeric: tabular-nums; }
 .hint{ opacity:.9; }
