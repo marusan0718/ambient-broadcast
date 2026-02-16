@@ -3,7 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Ambient Weather</title>
+  <title>Ambient Music</title>
+
+  <!-- PWA寄せ（できる範囲で） -->
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/15.3.5/Tone.js"></script>
 </head>
@@ -21,8 +27,11 @@
                 <span id="dot" class="inline-block size-2 rounded-full bg-slate-400"></span>
                 <span id="modeText">Ready</span>
               </div>
-              <h1 class="mt-3 text-2xl font-semibold tracking-tight">Ambient Weather</h1>
-              <p class="mt-1 text-sm text-slate-600">自然に馴染む、明るいアンビエント</p>
+              <h1 class="mt-3 text-2xl font-semibold tracking-tight">Ambient Music</h1>
+              <p class="mt-1 text-sm text-slate-600">
+                季節、天気、風のゆらぎ。<br class="hidden sm:block">
+                いまこの瞬間の自然と同期し、音楽を紡ぐ。
+              </p>
             </div>
 
             <div class="text-right">
@@ -44,7 +53,7 @@
               </div>
               <div class="text-left">
                 <div id="btnLabel" class="text-xl font-semibold">Start</div>
-                <div id="btnSub" class="text-xs text-white/75">タップで再生</div>
+                <div id="btnSub" class="text-xs text-white/75">タップで再生（AirPlayはコントロールセンターから）</div>
               </div>
             </div>
           </button>
@@ -128,7 +137,7 @@
                 </div>
 
                 <div class="mt-3 text-[11px] text-slate-500">
-                  変更は即反映（再生中は音の雰囲気が更新されるよ）
+                  ロック画面表示：再生開始後にOS側へ情報を渡します（完全保証ではないよ）
                 </div>
               </div>
             </details>
@@ -137,7 +146,7 @@
       </div>
 
       <div class="mt-4 text-center text-xs text-slate-500">
-        背景は“白のニュアンス”で時間帯に合わせて変化（濃い色なし）
+        AirPlay：iPhoneのコントロールセンターからHomePodへ
       </div>
     </div>
   </main>
@@ -218,10 +227,8 @@
   function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
   function setStatus(msg) { document.getElementById("status").textContent = msg; }
 
-  // ✅ ここが今回の主役：時間帯ごとに“白の表情”だけ変える
+  // 白トーン背景（時間帯）
   function applyWhiteByTime(time){
-    // ぜんぶ白系。夜でも黒にしない。
-    // morning: 青白い朝 / day: まっ白 / evening: 夕日の白 / night: ひんやり白
     const map = {
       morning: ["from-sky-50",   "via-white", "to-slate-100"],
       day:     ["from-white",    "via-white", "to-slate-100"],
@@ -230,8 +237,7 @@
       late:    ["from-slate-50", "via-white", "to-slate-200"],
     };
     const [a,b,c] = map[time] || map.day;
-
-    document.body.className = "min-h-screen text-slate-900 bg-gradient-to-b " + a + " " + b + " " + c;
+    document.body.className = `min-h-screen text-slate-900 bg-gradient-to-b ${a} ${b} ${c}`;
   }
 
   function windToIntervalSeconds(wind){
@@ -253,7 +259,33 @@
   }
 
   // =========================
-  // Music (維持)
+  // Media Session（ロック画面表示寄せ）
+  // =========================
+  function setMediaSessionMetadata(text){
+    if (!("mediaSession" in navigator)) return;
+    try{
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: "Ambient Music",
+        artist: text,        // 季節/天気/風などをここに入れる
+        album: "Nature Sync"
+      });
+
+      // できる範囲でOS操作と同期（Stop/Play）
+      navigator.mediaSession.setActionHandler("play",  async () => { if (!isRunning) await start(); });
+      navigator.mediaSession.setActionHandler("pause", () => { if (isRunning) stop(); });
+      // iOSは効かないこともあるのでtry/catchで安全に
+    } catch(e){}
+  }
+
+  function updatePlaybackState(){
+    if (!("mediaSession" in navigator)) return;
+    try{
+      navigator.mediaSession.playbackState = isRunning ? "playing" : "paused";
+    } catch(e){}
+  }
+
+  // =========================
+  // Music（そのまま）
   // =========================
   let isRunning = false;
   let reverb, filter;
@@ -278,12 +310,7 @@
     reverb = new Tone.Reverb({ decay: 10.5, wet: 0.30 }).toDestination();
     filter = new Tone.Filter({ type: "lowpass", frequency: 1800, rolloff: -12 }).connect(reverb);
 
-    sparkleDelay = new Tone.FeedbackDelay({
-      delayTime: "32n",
-      feedback: 0.22,
-      wet: 0.20
-    });
-
+    sparkleDelay = new Tone.FeedbackDelay({ delayTime: "32n", feedback: 0.22, wet: 0.20 });
     sparklePanner = new Tone.Panner(0).connect(filter);
     sparkleDelay.connect(sparklePanner);
 
@@ -349,7 +376,6 @@
     const env = getEnv(lastWeather);
     const key = keyFromSeason(env.season);
 
-    // 背景（白トーン）を時間で決定
     applyWhiteByTime(env.time);
 
     let bpm = 66;
@@ -360,21 +386,21 @@
     if (env.time === "late") bpm = 54;
     Tone.Transport.bpm.value = bpm;
 
-    let cutoff = 1800;
-    let wet = 0.30;
+    let cutoff = 1800, wet = 0.30;
     if (env.weatherCat === "clear") { cutoff = 2600; wet = 0.20; }
     if (env.weatherCat === "other") { cutoff = 1800; wet = 0.32; }
     if (env.weatherCat === "rain")  { cutoff = 1300; wet = 0.44; }
 
-    cutoff = clamp(cutoff, 900, 3200);
-    wet = clamp(wet, 0.18, 0.60);
-
-    filter.frequency.value = cutoff;
-    reverb.wet.value = wet;
+    filter.frequency.value = clamp(cutoff, 900, 3200);
+    reverb.wet.value = clamp(wet, 0.18, 0.60);
 
     if (birdFilter){
       birdFilter.frequency.value = (env.weatherCat === "rain") ? 1900 : 2300;
     }
+
+    // ロック画面表示用の文字（季節/天気/風）
+    const windText = `${lastWeather.wind.toFixed(1)} m/s`;
+    setMediaSessionMetadata(`${env.season} / ${env.weatherCat} / wind ${windText}`);
 
     setStatus(`再生中：${env.season}/${env.time}/${env.weatherCat}（Key:${key}）`);
     return { ...env, key };
@@ -420,10 +446,7 @@
     chordPad.triggerAttackRelease(triad(root), playDur, startTime, 0.72);
 
     const disposeAt = tEnd + 22.0;
-    Tone.Transport.scheduleOnce(() => {
-      chordPad.dispose();
-      chordGain.dispose();
-    }, disposeAt);
+    Tone.Transport.scheduleOnce(() => { chordPad.dispose(); chordGain.dispose(); }, disposeAt);
 
     const nextTime = startTime + playDur + gapDur;
     chordEventId = Tone.Transport.scheduleOnce((t) => {
@@ -435,11 +458,9 @@
   function pickFineDelayTimeSeconds(r){
     const night = (r.time === "night" || r.time === "late");
     const rain  = (r.weatherCat === "rain");
-
     const shortSet = ["64n","32n","16t","24n"];
     const midSet   = ["32n","24n","16n","16t"];
     const set = (night || rain) ? midSet : shortSet;
-
     const base = set[Math.floor(Math.random() * set.length)];
     const baseSec = Tone.Time(base).toSeconds();
     const jitter = (Math.random() * 0.05) - 0.025;
@@ -466,8 +487,7 @@
       if (r.weatherCat === "clear" && (r.time === "day" || r.time === "morning")) p = 0.64;
 
       if (Math.random() < p){
-        const dt = pickFineDelayTimeSeconds(r);
-        sparkleDelay.delayTime.setValueAtTime(dt, time);
+        sparkleDelay.delayTime.setValueAtTime(pickFineDelayTimeSeconds(r), time);
 
         const pan = (Math.random() * 1.6) - 0.8;
         sparklePanner.pan.cancelScheduledValues(time);
@@ -504,7 +524,6 @@
       bird.frequency.setValueAtTime(base, time);
       bird.frequency.linearRampToValueAtTime(up, time + dur);
       bird.frequency.linearRampToValueAtTime(base + 220, time + dur + 0.03);
-
       bird.triggerAttackRelease("C6", dur + 0.06, time, 0.30);
     }
 
@@ -523,9 +542,7 @@
     document.getElementById("weatherText").textContent = describeWeather(code);
     document.getElementById("weatherCode").textContent = String(code);
     document.getElementById("windSpeed").textContent = wind.toFixed(1);
-
-    const interval = windToIntervalSeconds(wind);
-    document.getElementById("density").textContent = (1 / interval).toFixed(1) + " notes/sec";
+    document.getElementById("density").textContent = (1 / windToIntervalSeconds(wind)).toFixed(1) + " notes/sec";
   }
 
   function setButtonState(){
@@ -550,9 +567,10 @@
       btn.classList.remove("bg-rose-600","hover:bg-rose-500");
       btn.classList.add("bg-slate-900","hover:bg-slate-800");
       label.textContent = "Start";
-      sub.textContent = "タップで再生";
+      sub.textContent = "タップで再生（AirPlayはコントロールセンターから）";
       iconSvg.innerHTML = '<path d="M8 5v14l11-7z"></path>';
     }
+    updatePlaybackState();
   }
 
   async function start(){
@@ -595,9 +613,7 @@
 
       nextUpdateAt = Date.now() + AUTO_UPDATE_MS;
 
-      // 背景の更新（Auto時間or固定時間の選択を反映）
       applyParams();
-
       if (isRunning){
         rebuildLoops();
         setStatus("再生中（更新反映）");
@@ -624,15 +640,12 @@
     if (!isRunning) await start();
     else stop();
   });
-
   document.getElementById("btnRefresh").addEventListener("click", () => refreshWeather(true));
   document.getElementById("btnUseManual").addEventListener("click", () => refreshWeather(false));
 
   ["seasonSel","timeSel","weatherSel"].forEach(id => {
     document.getElementById(id).addEventListener("change", () => {
-      // 背景は即反映（時間の白トーン）
       applyParams();
-      // 再生中なら音も更新
       if (isRunning) rebuildLoops();
     });
   });
