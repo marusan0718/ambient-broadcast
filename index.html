@@ -5,13 +5,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Ambient Music</title>
 
-  <!-- PWA寄せ（できる範囲で） -->
   <meta name="theme-color" content="#ffffff" />
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/15.3.5/Tone.js"></script>
+
+  <style>
+    summary::-webkit-details-marker { display:none; }
+    /* iOSのfixed + overflow対策：パネル内スクロールを“掴める”ように */
+    .ios-scroll { -webkit-overflow-scrolling: touch; }
+  </style>
 </head>
 
 <body class="min-h-screen text-slate-900">
@@ -86,60 +91,15 @@
               更新
             </button>
 
-            <details class="group">
-              <summary class="list-none cursor-pointer select-none px-4 py-2 rounded-2xl text-sm bg-white/80 border border-slate-200 hover:bg-white active:scale-[0.99]">
+            <!-- Settings trigger (we keep details for semantics, but panel is fixed) -->
+            <details id="settingsDetails" class="group">
+              <summary
+                class="list-none cursor-pointer select-none px-4 py-2 rounded-2xl text-sm
+                       bg-white/80 border border-slate-200 hover:bg-white active:scale-[0.99]
+                       inline-flex items-center gap-2">
                 設定
+                <span class="text-slate-400 group-open:rotate-180 transition">▾</span>
               </summary>
-
-              <div class="mt-3 w-[min(420px,calc(100vw-3rem))] rounded-3xl bg-white/95 border border-slate-200 shadow-xl p-4">
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <div class="text-xs text-slate-500 mb-1">季節</div>
-                    <select id="seasonSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
-                      <option value="auto">Auto</option>
-                      <option value="spring">春</option>
-                      <option value="summer">夏</option>
-                      <option value="autumn">秋</option>
-                      <option value="winter">冬</option>
-                    </select>
-                  </div>
-                  <div>
-                    <div class="text-xs text-slate-500 mb-1">時間</div>
-                    <select id="timeSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
-                      <option value="auto">Auto</option>
-                      <option value="morning">朝</option>
-                      <option value="day">昼</option>
-                      <option value="evening">夕</option>
-                      <option value="night">夜</option>
-                      <option value="late">深夜</option>
-                    </select>
-                  </div>
-                  <div>
-                    <div class="text-xs text-slate-500 mb-1">天気</div>
-                    <select id="weatherSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
-                      <option value="auto">Auto</option>
-                      <option value="clear">晴れ</option>
-                      <option value="rain">雨</option>
-                      <option value="other">その他</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="mt-4">
-                  <div class="text-xs text-slate-500 mb-2">位置情報が使えない場合（手入力）</div>
-                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <input id="lat" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" placeholder="lat (例: 35.681)" />
-                    <input id="lon" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" placeholder="lon (例: 139.767)" />
-                    <button id="btnUseManual" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800 active:scale-[0.99]">
-                      この座標で取得
-                    </button>
-                  </div>
-                </div>
-
-                <div class="mt-3 text-[11px] text-slate-500">
-                  ロック画面表示：再生開始後にOS側へ情報を渡します（完全保証ではないよ）
-                </div>
-              </div>
             </details>
           </div>
         </div>
@@ -150,6 +110,91 @@
       </div>
     </div>
   </main>
+
+  <!-- Settings Overlay (fixed, always within viewport) -->
+  <div id="settingsOverlay" class="fixed inset-0 z-50 hidden">
+    <!-- backdrop -->
+    <div id="settingsBackdrop" class="absolute inset-0 bg-slate-900/10 backdrop-blur-[2px]"></div>
+
+    <!-- panel wrapper (align to bottom on mobile, center-ish on desktop) -->
+    <div class="absolute inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6">
+      <div
+        class="w-full max-w-[520px]
+               rounded-[28px] bg-white/95 border border-slate-200 shadow-2xl
+               overflow-hidden">
+        <!-- header -->
+        <div class="px-5 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div class="text-sm font-semibold text-slate-800">設定</div>
+          <button id="btnCloseSettings"
+            class="px-3 py-1.5 rounded-xl text-sm bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.99]">
+            閉じる
+          </button>
+        </div>
+
+        <!-- scroll area -->
+        <div class="px-5 sm:px-6 py-4 max-h-[70vh] overflow-y-auto ios-scroll">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <div class="text-xs text-slate-500 mb-1">季節</div>
+              <select id="seasonSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                <option value="auto">Auto</option>
+                <option value="spring">春</option>
+                <option value="summer">夏</option>
+                <option value="autumn">秋</option>
+                <option value="winter">冬</option>
+              </select>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500 mb-1">時間</div>
+              <select id="timeSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                <option value="auto">Auto</option>
+                <option value="morning">朝</option>
+                <option value="day">昼</option>
+                <option value="evening">夕</option>
+                <option value="night">夜</option>
+                <option value="late">深夜</option>
+              </select>
+            </div>
+            <div>
+              <div class="text-xs text-slate-500 mb-1">天気</div>
+              <select id="weatherSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                <option value="auto">Auto</option>
+                <option value="clear">晴れ</option>
+                <option value="rain">雨</option>
+                <option value="other">その他</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <div class="text-xs text-slate-500 mb-2">位置情報が使えない場合（手入力）</div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <input id="lat" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" placeholder="lat (例: 35.681)" />
+              <input id="lon" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm" placeholder="lon (例: 139.767)" />
+              <button id="btnUseManual" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800 active:scale-[0.99]">
+                この座標で取得
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-4 flex items-center justify-between gap-3">
+            <button id="btnRefreshInSettings"
+              class="px-3 py-2 rounded-xl text-sm bg-white border border-slate-200 hover:bg-white active:scale-[0.99]">
+              いま更新
+            </button>
+            <div class="text-[11px] text-slate-500">
+              ロック画面表示：再生開始後にOS側へ情報を渡します（完全保証ではないよ）
+            </div>
+          </div>
+        </div>
+
+        <!-- footer -->
+        <div class="px-5 sm:px-6 py-3 border-t border-slate-200 text-[11px] text-slate-500">
+          ヒント：外側をタップ / Esc で閉じる
+        </div>
+      </div>
+    </div>
+  </div>
 
 <script>
   // =========================
@@ -266,14 +311,12 @@
     try{
       navigator.mediaSession.metadata = new MediaMetadata({
         title: "Ambient Music",
-        artist: text,        // 季節/天気/風などをここに入れる
+        artist: text,
         album: "Nature Sync"
       });
 
-      // できる範囲でOS操作と同期（Stop/Play）
       navigator.mediaSession.setActionHandler("play",  async () => { if (!isRunning) await start(); });
       navigator.mediaSession.setActionHandler("pause", () => { if (isRunning) stop(); });
-      // iOSは効かないこともあるのでtry/catchで安全に
     } catch(e){}
   }
 
@@ -398,7 +441,6 @@
       birdFilter.frequency.value = (env.weatherCat === "rain") ? 1900 : 2300;
     }
 
-    // ロック画面表示用の文字（季節/天気/風）
     const windText = `${lastWeather.wind.toFixed(1)} m/s`;
     setMediaSessionMetadata(`${env.season} / ${env.weatherCat} / wind ${windText}`);
 
@@ -635,6 +677,42 @@
     requestAnimationFrame(tick);
   }
 
+  // =========================
+  // Settings overlay control (new)
+  // =========================
+  const settingsDetails = document.getElementById("settingsDetails");
+  const settingsOverlay = document.getElementById("settingsOverlay");
+  const settingsBackdrop = document.getElementById("settingsBackdrop");
+  const btnCloseSettings = document.getElementById("btnCloseSettings");
+  const btnRefreshInSettings = document.getElementById("btnRefreshInSettings");
+
+  function openSettings(){
+    settingsOverlay.classList.remove("hidden");
+    // detailsは見た目用なのでopen状態は戻しておく（Safari癖対策）
+    settingsDetails.open = false;
+    document.documentElement.classList.add("overflow-hidden");
+    document.body.classList.add("overflow-hidden");
+  }
+
+  function closeSettings(){
+    settingsOverlay.classList.add("hidden");
+    document.documentElement.classList.remove("overflow-hidden");
+    document.body.classList.remove("overflow-hidden");
+  }
+
+  // summaryクリックでオーバーレイを開く
+  settingsDetails.addEventListener("toggle", () => {
+    if (settingsDetails.open) openSettings();
+  });
+
+  btnCloseSettings.addEventListener("click", closeSettings);
+  settingsBackdrop.addEventListener("click", closeSettings);
+  btnRefreshInSettings.addEventListener("click", () => refreshWeather(true));
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeSettings();
+  });
+
   // UI events
   document.getElementById("btnToggle").addEventListener("click", async () => {
     if (!isRunning) await start();
@@ -650,36 +728,7 @@
     });
   });
 
-  // =========================
-  // ✅ 追加：復帰したら更新（音楽/デザインは変えない）
-  // =========================
-  let lastResumeUpdateAt = 0;
-  const RESUME_COOLDOWN_MS = 12_000; // 復帰直後に何回も走らないように保険
-
-  async function refreshOnResume(){
-    const now = Date.now();
-    if (now - lastResumeUpdateAt < RESUME_COOLDOWN_MS) return;
-    lastResumeUpdateAt = now;
-
-    // 再生中・停止中どちらでも、環境だけ更新してOK
-    // （再生中なら rebuildLoops() まで refreshWeather内で反映される）
-    await refreshWeather(true);
-  }
-
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      refreshOnResume();
-    }
-  });
-
-  // iOS/Safariでvisibilitychangeが遅れることがあるので保険
-  window.addEventListener("focus", () => {
-    refreshOnResume();
-  });
-
-  // =========================
   // init
-  // =========================
   setButtonState();
   applyWhiteByTime(autoTimeBlock());
   refreshWeather(true);
