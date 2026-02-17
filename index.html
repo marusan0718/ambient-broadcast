@@ -164,7 +164,6 @@
                 </select>
               </div>
             </div>
-            <!-- ✅ ヒントは削除（要望どおり） -->
           </section>
 
           <!-- ===== Tab: Guide ===== -->
@@ -616,9 +615,14 @@
       oscillator: { type: "sine" },
       envelope: { attack: 2.2, decay: 0.6, sustain: 0.82, release: 18.0 }
     }).connect(chordGain);
-    chordPad.volume.value = -15;
 
-    let peak = 0.22 + Math.random() * 0.30;
+    // ✅ Harmonyの全体音量を少し下げる（-15 → -18）
+    chordPad.volume.value = -18;
+
+    // ✅ Harmonyの最大音量（peak）を下げる（上限を削る）
+    // 旧: 0.22 + rand*0.30（0.22〜0.52）
+    // 新: 0.16 + rand*0.18（0.16〜0.34）
+    let peak = 0.16 + Math.random() * 0.18;
     if (r.time === "night" || r.time === "late") peak *= 0.75;
     if (r.weatherCat === "rain") peak *= 0.85;
 
@@ -627,7 +631,7 @@
     const tEnd = startTime + playDur;
 
     chordGain.gain.setValueAtTime(0.00012, t0);
-    chordGain.gain.exponentialRampToValueAtTime(Math.max(0.00025, peak), tPeak);
+    chordGain.gain.exponentialRampToValueAtTime(Math.max(0.00018, peak), tPeak);
     chordGain.gain.exponentialRampToValueAtTime(0.00012, tEnd);
 
     chordPad.triggerAttackRelease(triad(root), playDur, startTime, 0.72);
