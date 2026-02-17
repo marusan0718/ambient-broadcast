@@ -20,6 +20,7 @@
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
     }
+    input[type="range"]{ accent-color:#0f172a; }
   </style>
 </head>
 
@@ -131,7 +132,7 @@
         <!-- body -->
         <div class="px-5 sm:px-6 py-4 max-h-[70vh] overflow-y-auto ios-scroll">
           <!-- ===== Tab: Settings ===== -->
-          <section id="tabSettings">
+          <section id="tabSettings" class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <div class="text-xs text-slate-500 mb-1">季節</div>
@@ -162,6 +163,83 @@
                   <option value="rain">雨</option>
                   <option value="other">その他</option>
                 </select>
+              </div>
+            </div>
+
+            <!-- ✅ Nature mix controls -->
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="text-sm font-semibold text-slate-800">自然音の頻度（手動）</div>
+              <p class="mt-1 text-xs text-slate-600">
+                Autoは「時間帯・天気」に合わせて自動。手動にすると、ここで頻度を上書きできます。
+              </p>
+
+              <div class="mt-3 space-y-4">
+                <!-- Birds -->
+                <div class="rounded-2xl bg-white border border-slate-200 p-4">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="text-sm font-medium text-slate-800">鳥</div>
+                    <div class="flex items-center gap-2">
+                      <select id="birdMode" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                        <option value="auto">Auto</option>
+                        <option value="manual">手動</option>
+                      </select>
+                      <div class="text-xs text-slate-500 w-20 text-right tabular-nums">
+                        <span id="birdVal">—</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3">
+                    <input id="birdFreq" type="range" min="0" max="100" value="55" class="w-full" />
+                    <div class="mt-1 flex justify-between text-[11px] text-slate-500">
+                      <span>少</span><span>多</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Wind -->
+                <div class="rounded-2xl bg-white border border-slate-200 p-4">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="text-sm font-medium text-slate-800">風</div>
+                    <div class="flex items-center gap-2">
+                      <select id="windMode" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                        <option value="auto">Auto</option>
+                        <option value="manual">手動</option>
+                      </select>
+                      <div class="text-xs text-slate-500 w-20 text-right tabular-nums">
+                        <span id="windVal">—</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3">
+                    <input id="windFreq" type="range" min="0" max="100" value="45" class="w-full" />
+                    <div class="mt-1 flex justify-between text-[11px] text-slate-500">
+                      <span>少</span><span>多</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Water -->
+                <div class="rounded-2xl bg-white border border-slate-200 p-4">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="text-sm font-medium text-slate-800">水</div>
+                    <div class="flex items-center gap-2">
+                      <select id="waterMode" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                        <option value="auto">Auto</option>
+                        <option value="manual">手動</option>
+                      </select>
+                      <div class="text-xs text-slate-500 w-20 text-right tabular-nums">
+                        <span id="waterVal">—</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3">
+                    <input id="waterFreq" type="range" min="0" max="100" value="50" class="w-full" />
+                    <div class="mt-1 flex justify-between text-[11px] text-slate-500">
+                      <span>少</span><span>多</span>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
           </section>
@@ -247,6 +325,17 @@
                 <div class="mt-3 text-sm text-slate-700 leading-relaxed">
                   響きは、その調の中でも穏やかな三和音だけを選び、不安定さを生む和音はあえて用いません。安心して身を預けられる響きを紡いでいます。<br>
                   ときどき、余韻が消える前に次の和音が重なり、景色のレイヤーが増える瞬間が生まれます。
+                </div>
+              </details>
+
+              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+                <summary class="cursor-pointer select-none flex items-center justify-between">
+                  <span class="text-sm font-medium text-slate-800">自然音（風・水）</span>
+                  <span class="text-slate-400">▾</span>
+                </summary>
+                <div class="mt-3 text-sm text-slate-700 leading-relaxed">
+                  風はピンクノイズのうねり、水はブラウンノイズのやわらかい流れとして、空気の“質感”を足しています。<br>
+                  設定画面から「Auto / 手動」と頻度を調整できます。
                 </div>
               </details>
             </div>
@@ -413,6 +502,77 @@
   }
 
   // =========================
+  // Manual frequency settings
+  // =========================
+  function readRange01(id){
+    const v = Number(document.getElementById(id).value || 0);
+    return clamp(v / 100, 0, 1);
+  }
+
+  function modeOf(id){ return document.getElementById(id).value; }
+
+  function uiFreqFactor(kind, r){
+    // kind: "bird" | "wind" | "water"
+    const modeId = kind + "Mode";
+    const rangeId = kind + "Freq";
+
+    if (modeOf(modeId) === "manual"){
+      return readRange01(rangeId); // 0..1
+    }
+
+    // Auto: だいたいの“基準”を返す（UI表示用に）
+    if (kind === "bird"){
+      let base = 0.55;
+      if (r.time === "day") base = 0.70;
+      if (r.time === "morning") base = 0.62;
+      if (r.time === "evening") base = 0.52;
+      if (r.time === "night") base = 0.20;
+      if (r.time === "late") base = 0.08;
+      if (r.weatherCat === "rain") base *= 0.70;
+      return clamp(base, 0, 1);
+    }
+
+    if (kind === "wind"){
+      const w = clamp(lastWeather.wind ?? 0, 0, 15);
+      let base = 0.45 + 0.40 * (w/15);
+      if (r.time === "late") base *= 0.70;
+      if (r.time === "night") base *= 0.82;
+      if (r.weatherCat === "rain") base *= 0.90;
+      return clamp(base, 0, 1);
+    }
+
+    if (kind === "water"){
+      let base = (r.weatherCat === "rain") ? 0.62 : 0.46;
+      if (r.time === "late") base *= 0.78;
+      if (r.time === "night") base *= 0.88;
+      return clamp(base, 0, 1);
+    }
+
+    return 0.5;
+  }
+
+  function updateFreqLabels(){
+    if (!lastComputedR) return;
+    const r = lastComputedR;
+
+    const b = uiFreqFactor("bird", r);
+    const w = uiFreqFactor("wind", r);
+    const a = uiFreqFactor("water", r);
+
+    document.getElementById("birdVal").textContent  = Math.round(b*100) + "%";
+    document.getElementById("windVal").textContent  = Math.round(w*100) + "%";
+    document.getElementById("waterVal").textContent = Math.round(a*100) + "%";
+
+    // disable sliders when auto
+    document.getElementById("birdFreq").disabled  = (modeOf("birdMode") !== "manual");
+    document.getElementById("windFreq").disabled  = (modeOf("windMode") !== "manual");
+    document.getElementById("waterFreq").disabled = (modeOf("waterMode") !== "manual");
+    document.getElementById("birdFreq").classList.toggle("opacity-40", modeOf("birdMode") !== "manual");
+    document.getElementById("windFreq").classList.toggle("opacity-40", modeOf("windMode") !== "manual");
+    document.getElementById("waterFreq").classList.toggle("opacity-40", modeOf("waterMode") !== "manual");
+  }
+
+  // =========================
   // Music
   // =========================
   let isRunning = false;
@@ -441,6 +601,9 @@
 
   let lastWeather = { code: 0, wind: 0, uv: null };
   let lastRoot = null;
+
+  // 直近のapplyParams結果（UI表示用）
+  let lastComputedR = null;
 
   // Chord cleanup
   const activeChordTimers = new Set();
@@ -482,7 +645,7 @@
 
     filter = new Tone.Filter({ type: "lowpass", frequency: 1900, rolloff: -12 }).connect(masterLimiter);
 
-    // ✅ Rhythm output: AutoPan -> HitPan -> filter
+    // Rhythm output: AutoPan -> HitPan -> filter
     sparkleAutoPanner = new Tone.AutoPanner({ frequency: 0.10, depth: 0.85, wet: 1.0 }).start();
     sparkleHitPanner = new Tone.Panner(0);
     sparkleAutoPanner.connect(sparkleHitPanner);
@@ -511,7 +674,7 @@
     windGain = new Tone.Gain(0.000001);
     windNoise.chain(windFilter, windGain, filter);
 
-    // Water (brown noise + highpass/lowpass feel)
+    // Water (brown noise + lowpass)
     waterNoise = new Tone.Noise("brown").start();
     waterFilter = new Tone.Filter({ type: "lowpass", frequency: 900, rolloff: -12 });
     waterGain = new Tone.Gain(0.000001);
@@ -556,6 +719,41 @@
     };
     const usePent = (weatherCat === "rain") || (time === "night" || time === "late");
     return usePent ? (pent[key] || pent["C"]) : (major[key] || major["C"]);
+  }
+
+  // ✅ リズム低域用：同じスケールを1〜2oct下げたものも混ぜる
+  function transposeNotes(arr, semis){
+    return arr.map(n => Tone.Frequency(n).transpose(semis).toNote());
+  }
+
+  function sparkleScaleWithLow(key, weatherCat, time){
+    const hi = sparkleScale(key, weatherCat, time);
+    const lo1 = transposeNotes(hi, -12);
+    const lo2 = transposeNotes(hi, -24);
+
+    // 基本はhi中心だけど、たまに低いのを混ぜたい
+    // → ここは「配列」を返さず、選択関数で比率を持つのが安全
+    return { hi, lo1, lo2 };
+  }
+
+  function pickRhythmNote(scalePack, r){
+    // 低域率（ランダム）：昼は少なめ、夜は少し多め、雨も少し多め
+    let lowP = 0.16;
+    if (r.time === "day" || r.time === "morning") lowP = 0.12;
+    if (r.time === "evening") lowP = 0.16;
+    if (r.time === "night") lowP = 0.22;
+    if (r.time === "late") lowP = 0.26;
+    if (r.weatherCat === "rain") lowP += 0.05;
+    lowP = clamp(lowP, 0.08, 0.38);
+
+    const roll = Math.random();
+    if (roll < lowP * 0.70){
+      return choose(scalePack.lo1);
+    }
+    if (roll < lowP){
+      return choose(scalePack.lo2);
+    }
+    return choose(scalePack.hi);
   }
 
   function getEnv(){
@@ -622,7 +820,7 @@
       birdFilter.frequency.value = (env.weatherCat === "rain") ? 1950 : 2350;
     }
 
-    // ✅ AutoPan speed by time
+    // AutoPan speed by time
     if (sparkleAutoPanner){
       let f = 0.10;
       if (env.time === "day") f = 0.13;
@@ -651,7 +849,10 @@
     setStatusChip(describeWeather(lastWeather.code));
     if (isRunning) setStatus("再生中", sub);
 
-    return { ...env, key, bpm };
+    lastComputedR = { ...env, key, bpm };
+    updateFreqLabels();
+
+    return lastComputedR;
   }
 
   function clearHarmonyScheduler(){
@@ -661,7 +862,6 @@
     }
   }
 
-  // ✅ ハーモニー出現頻度を「ランダムで増やす」
   function harmonyGapSeconds(r){
     let g = randomBetween(0.9, 3.2);
 
@@ -687,7 +887,6 @@
     return f.transpose(12 * octShift).toNote();
   }
 
-  // ✅ 減衰前の重なり頻度を増やす（early overlap 多め）
   function pickOverlapMode(r){
     let base = 0.52;
     if (r.time === "day" || r.time === "morning") base = 0.60;
@@ -726,11 +925,9 @@
       envelope: { attack: 2.2, decay: 0.6, sustain: 0.82, release: 18.0 }
     }).connect(chordGain);
 
-    // ✅ Harmony volumeは控えめ
     chordPad.volume.value = -18;
 
-    // ✅ peak上限を抑える
-    let peak = 0.15 + Math.random() * 0.17; // 0.15〜0.32
+    let peak = 0.15 + Math.random() * 0.17;
     if (r.time === "night" || r.time === "late") peak *= 0.78;
     if (r.weatherCat === "rain") peak *= 0.86;
 
@@ -747,16 +944,13 @@
     const disposeAt = tEnd + 22.0;
     scheduleDispose(chordPad, chordGain, disposeAt);
 
-    // ✅ 次のハーモニー：通常/余韻重なり/減衰前重なり をランダムに
     const mode = pickOverlapMode(r);
     let nextTime = startTime + playDur + gapDur;
 
     if (mode === "tail"){
-      // 余韻の中で重なる（release中）
       nextTime = tEnd + randomBetween(-10.0, 6.0);
       nextTime = Math.max(nextTime, startTime + 7.0);
     } else if (mode === "early"){
-      // ✅ 減衰前に重なる（sustain域で重なる）
       const frac = randomBetween(0.30, 0.70);
       nextTime = startTime + playDur * frac;
     }
@@ -823,7 +1017,6 @@
     }
   }
 
-  // ✅ リズム音の「音価」をランダム化
   function randomRhythmDuration(r){
     const dayish = (r.time === "morning" || r.time === "day");
     const nightish = (r.time === "night" || r.time === "late");
@@ -842,7 +1035,6 @@
     return clamp(sec, 0.05, 0.60);
   }
 
-  // ✅ ヒット毎パン（ランダム）
   function applyHitPan(time, r){
     if (!sparkleHitPanner) return;
 
@@ -867,7 +1059,13 @@
     if (r.time === "night") base *= 0.78;
     if (r.time === "late") base *= 0.65;
     if (r.weatherCat === "rain") base *= 0.90;
-    return clamp(base, 0.00002, 0.00020);
+
+    // 手動は“存在感”も上書き（0..1を 0.35..1.35 にマップ）
+    const f = uiFreqFactor("wind", r);
+    const gainMul = clamp(0.35 + 1.10 * f, 0.20, 1.60);
+    base *= gainMul;
+
+    return clamp(base, 0.00001, 0.00028);
   }
 
   function waterBaseLevel(r){
@@ -875,13 +1073,21 @@
     if (r.weatherCat === "rain") base = 0.00008;
     if (r.time === "night") base *= 0.85;
     if (r.time === "late") base *= 0.70;
-    return clamp(base, 0.00002, 0.00014);
+
+    const f = uiFreqFactor("water", r);
+    const gainMul = clamp(0.35 + 1.10 * f, 0.20, 1.60);
+    base *= gainMul;
+
+    return clamp(base, 0.00001, 0.00020);
   }
 
   function triggerWindGust(time, r){
     if (!windGain) return;
     const base = windBaseLevel(r);
-    const peak = clamp(base * randomBetween(2.0, 4.8), 0.00006, 0.00065);
+
+    // 頻度(0..1)で“起きやすさ”と“ピーク”を調整
+    const ff = uiFreqFactor("wind", r);
+    const peak = clamp(base * randomBetween(1.8, 4.6) * (0.70 + 0.90*ff), 0.00003, 0.00085);
     const dur = randomBetween(2.4, 6.8);
 
     windGain.gain.cancelScheduledValues(time);
@@ -893,7 +1099,9 @@
   function triggerWaterRipple(time, r){
     if (!waterGain) return;
     const base = waterBaseLevel(r);
-    const peak = clamp(base * randomBetween(1.6, 3.2), 0.00005, 0.00055);
+
+    const ff = uiFreqFactor("water", r);
+    const peak = clamp(base * randomBetween(1.6, 3.2) * (0.75 + 0.90*ff), 0.00003, 0.00070);
     const dur = randomBetween(1.4, 4.6);
 
     waterGain.gain.cancelScheduledValues(time);
@@ -902,6 +1110,9 @@
     waterGain.gain.exponentialRampToValueAtTime(Math.max(0.000001, base), time + dur);
   }
 
+  // =========================
+  // Loops
+  // =========================
   function rebuildLoops(){
     disposeAllChords();
     Tone.Transport.cancel(0);
@@ -926,12 +1137,12 @@
     // rhythm delay structure
     rebuildSparkleDelayIfNeeded(r);
 
-    // Rhythm (sparkle)
+    // Rhythm (sparkle) — ✅ 低域も混ぜる
     const sparkleInterval = 0.52;
     sparkleLoop = new Tone.Loop((time) => {
       rebuildSparkleDelayIfNeeded(r);
 
-      const scale = sparkleScale(r.key, r.weatherCat, r.time);
+      const pack = sparkleScaleWithLow(r.key, r.weatherCat, r.time);
 
       let p = 0.60;
       if (r.weatherCat === "rain") p = 0.50;
@@ -952,23 +1163,30 @@
       if (Math.random() < p){
         applyHitPan(time, r);
 
-        const note = scale[Math.floor(Math.random() * scale.length)];
+        const note = pickRhythmNote(pack, r);
         const durSec = randomRhythmDuration(r);
-        const amp = 0.40 + Math.random() * 0.12;
+
+        // 低域は少し音量落とす
+        const isLowish = Tone.Frequency(note).toMidi() < Tone.Frequency(pack.hi[0]).toMidi();
+        let amp = 0.40 + Math.random() * 0.12;
+        if (isLowish) amp *= 0.78;
 
         if (Math.random() < 0.16){
-          const note2 = scale[Math.floor(Math.random() * scale.length)];
+          const note2 = pickRhythmNote(pack, r);
           const dur2 = clamp(durSec * randomBetween(0.75, 1.15), 0.05, 0.55);
+          const isLow2 = Tone.Frequency(note2).toMidi() < Tone.Frequency(pack.hi[0]).toMidi();
+          const amp2 = isLow2 ? amp*0.78 : amp*0.82;
+
           sparkle.triggerAttackRelease(note,  durSec, time,        amp);
-          sparkle.triggerAttackRelease(note2, dur2,  time + 0.02,  amp * 0.82);
+          sparkle.triggerAttackRelease(note2, dur2,  time + 0.02,  amp2);
         } else {
           sparkle.triggerAttackRelease(note, durSec, time, amp);
         }
       }
     }, sparkleInterval).start(0);
 
-    // Bird (more)
-    function birdChance(){
+    // Bird loop — ✅ UIの頻度で上書き
+    function autoBirdChance(r){
       let base = 0.08;
       if (r.time === "morning") base = 0.18;
       if (r.time === "day")     base = 0.26;
@@ -987,8 +1205,20 @@
         const u = clamp(uv / 11, 0, 1);
         base *= (1.0 + 0.12 * u);
       }
-
       return clamp(base, 0.010, 0.40);
+    }
+
+    function birdChance(r){
+      const auto = autoBirdChance(r);
+      const f = uiFreqFactor("bird", r);
+
+      // 手動は「0..1」→ auto基準に対して 0.0..1.7倍
+      // Auto時は fはauto相当の値なので ほぼ同じになる
+      const mul = (modeOf("birdMode") === "manual")
+        ? clamp(0.0 + 1.7 * f, 0.0, 1.7)
+        : 1.0;
+
+      return clamp(auto * mul, 0.0, 0.55);
     }
 
     function chirp(time, amp = 0.30){
@@ -1014,7 +1244,7 @@
       }
     }
 
-    function birdLoopIntervalSeconds(){
+    function birdLoopIntervalSeconds(r){
       if (r.time === "day") return 1.55;
       if (r.time === "morning") return 1.70;
       if (r.time === "evening") return 2.05;
@@ -1025,7 +1255,7 @@
     birdLoop = new Tone.Loop((time) => {
       if (!bird) return;
 
-      const p = birdChance();
+      const p = birdChance(r);
       if (Math.random() < p){
         if (r.time === "night" || r.time === "late"){
           chirp(time, 0.23);
@@ -1048,29 +1278,38 @@
           phrase(time);
         }
       }
-    }, birdLoopIntervalSeconds()).start(0);
+    }, birdLoopIntervalSeconds(r)).start(0);
 
-    // Wind random gusts
-    function windLoopInterval(){
+    // Wind random gusts — ✅ UIの頻度で上書き
+    function windLoopInterval(r){
       if (r.time === "day") return 3.2;
       if (r.time === "morning") return 3.6;
       if (r.time === "evening") return 4.0;
       if (r.time === "night") return 5.0;
       return 6.2;
     }
+
     windLoop = new Tone.Loop((time) => {
+      const ff = uiFreqFactor("wind", r); // 0..1
+
+      // “起きやすさ”：auto基準をffで上書き（手動時は直で効く）
       const w = clamp(lastWeather.wind ?? 0, 0, 15);
-      let p = 0.20 + 0.35 * (w / 15);
-      if (r.time === "late") p *= 0.70;
-      if (r.weatherCat === "rain") p *= 0.90;
-      p = clamp(p, 0.08, 0.72);
+      let pAuto = 0.20 + 0.35 * (w / 15);
+      if (r.time === "late") pAuto *= 0.70;
+      if (r.weatherCat === "rain") pAuto *= 0.90;
+      pAuto = clamp(pAuto, 0.06, 0.72);
+
+      const p = (modeOf("windMode") === "manual")
+        ? clamp(0.02 + 0.95 * ff, 0.02, 0.95)
+        : pAuto;
+
       if (Math.random() < p){
         triggerWindGust(time, r);
       }
-    }, windLoopInterval()).start(0);
+    }, windLoopInterval(r)).start(0);
 
-    // Water random ripples
-    function waterLoopInterval(){
+    // Water random ripples — ✅ UIの頻度で上書き
+    function waterLoopInterval(r){
       if (r.weatherCat === "rain") return 3.0;
       if (r.time === "day") return 4.2;
       if (r.time === "morning") return 4.6;
@@ -1078,15 +1317,23 @@
       if (r.time === "night") return 6.2;
       return 7.2;
     }
+
     waterLoop = new Tone.Loop((time) => {
-      let p = (r.weatherCat === "rain") ? 0.44 : 0.26;
-      if (r.time === "late") p *= 0.75;
-      if (r.time === "night") p *= 0.85;
-      p = clamp(p, 0.10, 0.60);
+      const ff = uiFreqFactor("water", r); // 0..1
+
+      let pAuto = (r.weatherCat === "rain") ? 0.44 : 0.26;
+      if (r.time === "late") pAuto *= 0.75;
+      if (r.time === "night") pAuto *= 0.85;
+      pAuto = clamp(pAuto, 0.08, 0.60);
+
+      const p = (modeOf("waterMode") === "manual")
+        ? clamp(0.02 + 0.95 * ff, 0.02, 0.95)
+        : pAuto;
+
       if (Math.random() < p){
         triggerWaterRipple(time, r);
       }
-    }, waterLoopInterval()).start(0);
+    }, waterLoopInterval(r)).start(0);
   }
 
   function setButtonState(){
@@ -1245,6 +1492,7 @@
     document.documentElement.classList.add("overflow-hidden");
     document.body.classList.add("overflow-hidden");
     setTab("tabSettings");
+    updateFreqLabels();
   }
 
   function closeSettings(){
@@ -1281,6 +1529,25 @@
       applyParams();
       if (isRunning) rebuildLoops();
       applyParams();
+    });
+  });
+
+  // ✅ frequency UI events（手動変更を即反映）
+  ["birdMode","windMode","waterMode","birdFreq","windFreq","waterFreq"].forEach(id => {
+    document.getElementById(id).addEventListener("input", () => {
+      updateFreqLabels();
+      // 再生中は「音量ベース」を即追従（ループ再構築はしない）
+      if (isRunning && lastComputedR){
+        const r = lastComputedR;
+        const now = Tone.now();
+        try{
+          if (windGain) windGain.gain.setValueAtTime(Math.max(0.000001, windBaseLevel(r)), now);
+          if (waterGain) waterGain.gain.setValueAtTime(Math.max(0.000001, waterBaseLevel(r)), now);
+        } catch(e){}
+      }
+    });
+    document.getElementById(id).addEventListener("change", () => {
+      updateFreqLabels();
     });
   });
 
