@@ -64,20 +64,15 @@
             </div>
           </button>
 
-          <div class="mt-4 grid grid-cols-2 gap-3">
-            <div class="rounded-2xl bg-white/75 border border-slate-200 p-4">
+          <!-- ✅ メインに「状態」を移動（天気/風速カードは削除） -->
+          <div class="mt-4">
+            <div class="rounded-2xl bg-white/75 border border-slate-200 px-4 py-3">
               <div class="flex items-center justify-between">
-                <div class="text-xs text-slate-500">天気</div>
-                <div class="text-[11px] text-slate-500">UV <span id="uvText" class="tabular-nums">—</span></div>
+                <div class="text-xs text-slate-500">状態</div>
+                <div id="statusChip" class="text-[11px] text-slate-500 tabular-nums">—</div>
               </div>
-              <div id="weatherText" class="mt-1 text-base font-medium">—</div>
-              <div class="hidden mt-2 text-[11px] text-slate-500">コード: <span id="weatherCode">—</span></div>
-            </div>
-
-            <div class="rounded-2xl bg-white/75 border border-slate-200 p-4">
-              <div class="text-xs text-slate-500">風速</div>
-              <div class="mt-1 text-base font-medium"><span id="windSpeed">—</span> m/s</div>
-              <div class="hidden mt-2 text-[11px] text-slate-500">密度: <span id="density">—</span></div>
+              <div id="statusMain" class="mt-1 text-base font-medium text-slate-800">待機中</div>
+              <div id="statusSub" class="mt-0.5 text-[12px] text-slate-600">—</div>
             </div>
           </div>
         </div>
@@ -170,14 +165,7 @@
               </div>
             </div>
 
-            <!-- ✅ 状態（シンプル + 状況が分かる2行） -->
-            <div class="mt-4">
-              <div class="text-xs text-slate-500 mb-1">状態</div>
-              <div class="rounded-2xl border border-slate-200 bg-white px-3 py-2">
-                <div id="statusMain" class="text-sm font-medium text-slate-800">待機中</div>
-                <div id="statusSub" class="mt-0.5 text-[12px] text-slate-600">—</div>
-              </div>
-            </div>
+            <!-- ✅ ヒントは削除（要望どおり） -->
           </section>
 
           <!-- ===== Tab: Guide ===== -->
@@ -359,6 +347,12 @@
     b.textContent = sub;
   }
 
+  function setStatusChip(text = "—"){
+    const el = document.getElementById("statusChip");
+    if (!el) return;
+    el.textContent = text;
+  }
+
   function applyWhiteByTime(time){
     const map = {
       morning: ["from-sky-50",   "via-white", "to-slate-100"],
@@ -409,11 +403,6 @@
 
   let lastWeather = { code: 0, wind: 0, uv: null };
   let lastRoot = null;
-
-  const HARM_PLAY_MIN = 26.0;
-  const HARM_PLAY_MAX = 52.0;
-  const GAP_MIN = 3.0;
-  const GAP_MAX = 8.0;
 
   function ensureAudioGraph(){
     if (sparkle) return;
@@ -544,13 +533,15 @@
       birdFilter.frequency.value = (env.weatherCat === "rain") ? 1900 : 2300;
     }
 
-    const windText = `${lastWeather.wind.toFixed(1)} m/s`;
+    const windText = `${(lastWeather.wind ?? 0).toFixed(1)} m/s`;
     const uvText = (uv === null) ? "—" : uv.toFixed(1);
     setMediaSessionMetadata(`${env.season} / ${env.weatherCat} / wind ${windText} / UV ${uvText}`);
 
-    // ✅ 状態をシンプルに：メイン=再生中/待機/停止/取得中…、サブ=Key・時間・天気・風・UV
-    const sub = `Key ${key} · ${prettyTimeLabel(env.time)} · ${prettyWeatherLabel(env.weatherCat)} · 風 ${lastWeather.wind.toFixed(1)} · UV ${uvText}`;
+    // ✅ 状態（メイン表示用）
+    const sub = `Key ${key} · ${prettyTimeLabel(env.time)} · ${prettyWeatherLabel(env.weatherCat)} · 風 ${(lastWeather.wind ?? 0).toFixed(1)} · UV ${uvText}`;
+    setStatusChip(describeWeather(lastWeather.code));
     if (isRunning) setStatus("再生中", sub);
+
     return { ...env, key, bpm };
   }
 
@@ -625,6 +616,7 @@
     const startAt = Tone.Transport.seconds + 0.1;
     chordEventId = Tone.Transport.scheduleOnce((t) => playOneHarmony(t, r), startAt);
 
+    // Sparkle
     const sparkleInterval = 0.58;
     sparkleLoop = new Tone.Loop((time) => {
       const scale = sparkleScale(r.key, r.weatherCat, r.time);
@@ -635,7 +627,7 @@
       if (r.time === "night") p = Math.min(p, 0.40);
       if (r.weatherCat === "clear" && (r.time === "day" || r.time === "morning")) p = 0.64;
 
-      const windBoost = clamp((lastWeather.wind - 2) / 10, 0, 0.12);
+      const windBoost = clamp(((lastWeather.wind ?? 0) - 2) / 10, 0, 0.12);
       p += windBoost;
 
       const uv = (typeof lastWeather.uv === "number") ? lastWeather.uv : null;
@@ -672,26 +664,22 @@
     function birdChance(){
       let base = 0.045;
 
-      // 時間帯（昼を増やす）
       if (r.time === "morning") base = 0.11;
-      if (r.time === "day")     base = 0.18;  // ★昼をしっかり増やす
+      if (r.time === "day")     base = 0.18;
       if (r.time === "evening") base = 0.08;
       if (r.time === "night")   base = 0.018;
       if (r.time === "late")    base = 0.006;
 
-      // 天気（雨は控えめ、晴れは少しだけ活発）
       if (r.weatherCat === "rain")  base *= 0.55;
       if (r.weatherCat === "clear" && (r.time === "day" || r.time === "morning")) base *= 1.12;
 
-      // 風（少しだけ：強風で鳥が増えすぎないよう上限はきつめ）
       const w = clamp(lastWeather.wind ?? 0, 0, 15);
-      base *= (1.0 + 0.10 * (w / 15)); // 最大+10%
+      base *= (1.0 + 0.10 * (w / 15));
 
-      // UV（昼の賑わいにほんの少しだけ）
       const uv = (typeof lastWeather.uv === "number") ? lastWeather.uv : null;
       if (uv !== null && r.time === "day") {
         const u = clamp(uv / 11, 0, 1);
-        base *= (1.0 + 0.10 * u); // 最大+10%
+        base *= (1.0 + 0.10 * u);
       }
 
       return clamp(base, 0.004, 0.25);
@@ -725,7 +713,7 @@
       if (r.time === "morning") return 2.1;
       if (r.time === "evening") return 2.4;
       if (r.time === "night") return 3.2;
-      return 4.0; // late
+      return 4.0;
     }
 
     birdLoop = new Tone.Loop((time) => {
@@ -733,16 +721,13 @@
 
       const p = birdChance();
       if (Math.random() < p){
-        // 夜/深夜は“単発中心”にして静けさを守る
         if (r.time === "night" || r.time === "late"){
           chirp(time, 0.24);
           if (Math.random() < 0.12) chirp(time + 0.18 + Math.random()*0.10, 0.22);
           return;
         }
 
-        // 朝/昼：単発・2連・フレーズを混ぜる
         const roll = Math.random();
-
         if (roll < 0.52){
           chirp(time, 0.28 + Math.random()*0.08);
           if (Math.random() < (r.time === "day" ? 0.55 : 0.40)){
@@ -762,13 +747,6 @@
         }
       }
     }, birdLoopIntervalSeconds()).start(0);
-  }
-
-  function updateUI({ code, wind, uv }){
-    document.getElementById("weatherText").textContent = describeWeather(code);
-    document.getElementById("weatherCode").textContent = String(code);
-    document.getElementById("windSpeed").textContent = wind.toFixed(1);
-    document.getElementById("uvText").textContent = (typeof uv === "number") ? uv.toFixed(1) : "—";
   }
 
   function setButtonState(){
@@ -795,6 +773,7 @@
       label.textContent = "Start";
       sub.textContent = "タップで再生";
       iconSvg.innerHTML = '<path d="M8 5v14l11-7z"></path>';
+      setStatusChip("—");
       setStatus("待機中", "—");
     }
     updatePlaybackState();
@@ -808,7 +787,7 @@
     rebuildLoops();
     isRunning = true;
     setButtonState();
-    applyParams(); // 状態サブ更新
+    applyParams();
   }
 
   function stop(){
@@ -822,24 +801,27 @@
     Tone.Transport.stop();
     Tone.Transport.cancel(0);
 
+    setStatusChip(describeWeather(lastWeather.code));
     setStatus("停止中", "—");
     setButtonState();
   }
 
   async function refreshWeather(){
     try{
+      setStatusChip("—");
       setStatus("取得中…", "天気/風/UV");
+
       const pos = await getCurrentPosition();
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
 
       const { code, wind, uv } = await fetchWeatherByCoords(lat, lon);
       lastWeather = { code, wind, uv };
-      updateUI(lastWeather);
 
       nextUpdateAt = Date.now() + AUTO_UPDATE_MS;
 
       applyParams();
+
       if (isRunning){
         rebuildLoops();
         applyParams();
@@ -847,11 +829,13 @@
         const env = getEnv();
         const key = keyFromSeason(env.season);
         const uvText = (typeof lastWeather.uv === "number") ? lastWeather.uv.toFixed(1) : "—";
-        const sub = `Key ${key} · ${prettyTimeLabel(env.time)} · ${prettyWeatherLabel(env.weatherCat)} · 風 ${lastWeather.wind.toFixed(1)} · UV ${uvText}`;
+        const sub = `Key ${key} · ${prettyTimeLabel(env.time)} · ${prettyWeatherLabel(env.weatherCat)} · 風 ${(lastWeather.wind ?? 0).toFixed(1)} · UV ${uvText}`;
+        setStatusChip(describeWeather(lastWeather.code));
         setStatus("待機中", sub);
       }
     } catch(e){
       console.error(e);
+      setStatusChip("—");
       setStatus("エラー", e.message);
     }
   }
@@ -926,6 +910,7 @@
     if (!isRunning) await start();
     else stop();
   });
+
   document.getElementById("btnRefresh").addEventListener("click", () => refreshWeather());
 
   ["seasonSel","timeSel","weatherSel"].forEach(id => {
