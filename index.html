@@ -64,7 +64,7 @@
             </div>
           </button>
 
-          <!-- ✅ メインに「状態」を移動（天気/風速カードは削除） -->
+          <!-- 状態 -->
           <div class="mt-4">
             <div class="rounded-2xl bg-white/75 border border-slate-200 px-4 py-3">
               <div class="flex items-center justify-between">
@@ -164,7 +164,6 @@
                 </select>
               </div>
             </div>
-
             <!-- ✅ ヒントは削除（要望どおり） -->
           </section>
 
@@ -317,6 +316,27 @@
   }
 
   // =========================
+  // Wake Lock（画面OFFで止まりやすい対策）
+  // =========================
+  let wakeLock = null;
+  async function requestWakeLock(){
+    try{
+      if (!("wakeLock" in navigator)) return;
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    } catch(e){}
+  }
+  async function releaseWakeLock(){
+    try{ if (wakeLock) await wakeLock.release(); } catch(e){}
+    wakeLock = null;
+  }
+  document.addEventListener("visibilitychange", async () => {
+    if (document.visibilityState === "visible" && isRunning){
+      await requestWakeLock();
+    }
+  });
+
+  // =========================
   // Env helpers
   // =========================
   function autoTimeBlock(){
@@ -338,7 +358,6 @@
 
   function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
 
-  // ✅ 状態を「短いけど分かる」にする（メイン + サブ）
   function setStatus(main, sub = "—") {
     const a = document.getElementById("statusMain");
     const b = document.getElementById("statusSub");
@@ -403,6 +422,37 @@
 
   let lastWeather = { code: 0, wind: 0, uv: null };
   let lastRoot = null;
+
+  // ✅ 止まらない化の核：和音ノードとタイマーを追跡して確実に掃除する
+  const activeChordTimers = new Set();
+  const activeChordNodes = new Set();
+
+  function disposeAllChords(){
+    activeChordTimers.forEach(tid => { try{ clearTimeout(tid); } catch(e){} });
+    activeChordTimers.clear();
+
+    activeChordNodes.forEach(node => { try{ node.dispose(); } catch(e){} });
+    activeChordNodes.clear();
+  }
+
+  function scheduleDispose(nodeA, nodeB, atAudioTimeSec){
+    // Transport.cancel(0) の影響を受けないように「実時間」で dispose 予約する
+    const now = Tone.now();
+    const ms = Math.max(0, (atAudioTimeSec - now) * 1000);
+
+    activeChordNodes.add(nodeA);
+    activeChordNodes.add(nodeB);
+
+    const tid = setTimeout(() => {
+      try{ nodeA.dispose(); } catch(e){}
+      try{ nodeB.dispose(); } catch(e){}
+      activeChordNodes.delete(nodeA);
+      activeChordNodes.delete(nodeB);
+      activeChordTimers.delete(tid);
+    }, ms);
+
+    activeChordTimers.add(tid);
+  }
 
   function ensureAudioGraph(){
     if (sparkle) return;
@@ -537,7 +587,6 @@
     const uvText = (uv === null) ? "—" : uv.toFixed(1);
     setMediaSessionMetadata(`${env.season} / ${env.weatherCat} / wind ${windText} / UV ${uvText}`);
 
-    // ✅ 状態（メイン表示用）
     const sub = `Key ${key} · ${prettyTimeLabel(env.time)} · ${prettyWeatherLabel(env.weatherCat)} · 風 ${(lastWeather.wind ?? 0).toFixed(1)} · UV ${uvText}`;
     setStatusChip(describeWeather(lastWeather.code));
     if (isRunning) setStatus("再生中", sub);
@@ -583,8 +632,9 @@
 
     chordPad.triggerAttackRelease(triad(root), playDur, startTime, 0.72);
 
+    // ✅ ここが止まらない化の核心：Transportでdispose予約しない
     const disposeAt = tEnd + 22.0;
-    Tone.Transport.scheduleOnce(() => { chordPad.dispose(); chordGain.dispose(); }, disposeAt);
+    scheduleDispose(chordPad, chordGain, disposeAt);
 
     const nextTime = startTime + playDur + gapDur;
     chordEventId = Tone.Transport.scheduleOnce((t) => {
@@ -606,6 +656,10 @@
   }
 
   function rebuildLoops(){
+    // ✅ rebuildのたびに残骸を全部掃除（ここが効く）
+    disposeAllChords();
+
+    // cancelは残してOK（dispose予約がTransport依存じゃないから安全）
     Tone.Transport.cancel(0);
 
     if (sparkleLoop) { sparkleLoop.dispose(); sparkleLoop = null; }
@@ -658,8 +712,7 @@
     }, sparkleInterval).start(0);
 
     // =========================
-    // 🐦 Bird (chirp) — Updated
-    // 目的：昼の頻度UP / 夜は静か / 単調さを避ける
+    // 🐦 Bird (chirp)
     // =========================
     function birdChance(){
       let base = 0.045;
@@ -783,6 +836,8 @@
     ensureAudioGraph();
     Tone.Destination.mute = false;
     await Tone.start();
+    await requestWakeLock();
+
     Tone.Transport.start();
     rebuildLoops();
     isRunning = true;
@@ -801,9 +856,14 @@
     Tone.Transport.stop();
     Tone.Transport.cancel(0);
 
+    // ✅ 止めたら残骸も全部掃除
+    disposeAllChords();
+
     setStatusChip(describeWeather(lastWeather.code));
     setStatus("停止中", "—");
     setButtonState();
+
+    releaseWakeLock();
   }
 
   async function refreshWeather(){
