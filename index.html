@@ -411,8 +411,12 @@
   // Music
   // =========================
   let isRunning = false;
-  let reverb, filter;
 
+  // ✅ もっとリバーブを全体に：masterReverb へ集約
+  let masterReverb, masterComp, masterLimiter;
+  let filter; // shared tone color
+
+  // sparkle = rhythm
   let sparkle, sparkleDelay, sparklePanner;
   let bird, birdFilter, birdTremolo;
 
@@ -435,7 +439,6 @@
   }
 
   function scheduleDispose(nodeA, nodeB, atAudioTimeSec){
-    // Transport.cancel(0) の影響を受けないように「実時間」で dispose 予約する
     const now = Tone.now();
     const ms = Math.max(0, (atAudioTimeSec - now) * 1000);
 
@@ -456,27 +459,39 @@
   function ensureAudioGraph(){
     if (sparkle) return;
 
-    reverb = new Tone.Reverb({ decay: 10.5, wet: 0.30 }).toDestination();
-    filter = new Tone.Filter({ type: "lowpass", frequency: 1800, rolloff: -12 }).connect(reverb);
+    // ✅ Master chain（全体にリバーブ + ほんの少し整える）
+    masterReverb = new Tone.Reverb({ decay: 14.5, wet: 0.42 }).toDestination();
+    masterComp = new Tone.Compressor({ threshold: -18, ratio: 2.2, attack: 0.01, release: 0.22 }).connect(masterReverb);
+    masterLimiter = new Tone.Limiter(-1).connect(masterComp);
 
-    sparkleDelay = new Tone.FeedbackDelay({ delayTime: "32n", feedback: 0.22, wet: 0.20 });
+    // ✅ まずリミッタへ集約 → comp → reverb（音が暴れにくい）
+    // ここへ全員 connect する
+    filter = new Tone.Filter({ type: "lowpass", frequency: 1900, rolloff: -12 }).connect(masterLimiter);
+
+    // =========================
+    // Sparkle / Rhythm
+    // =========================
+    sparkleDelay = new Tone.FeedbackDelay({ delayTime: "16n", feedback: 0.34, wet: 0.40 });
     sparklePanner = new Tone.Panner(0).connect(filter);
     sparkleDelay.connect(sparklePanner);
 
     sparkle = new Tone.Synth({
       oscillator: { type: "sine" },
-      envelope: { attack: 0.01, decay: 0.12, sustain: 0.0, release: 1.2 }
+      envelope: { attack: 0.01, decay: 0.10, sustain: 0.0, release: 1.4 }
     }).connect(sparkleDelay);
     sparkle.volume.value = -12;
 
-    birdTremolo = new Tone.Tremolo({ frequency: 9, depth: 0.6, wet: 1.0 }).start();
-    birdFilter = new Tone.Filter({ type: "bandpass", frequency: 2200, Q: 6 });
+    // =========================
+    // Bird
+    // =========================
+    birdTremolo = new Tone.Tremolo({ frequency: 9, depth: 0.65, wet: 1.0 }).start();
+    birdFilter = new Tone.Filter({ type: "bandpass", frequency: 2300, Q: 6 });
     bird = new Tone.Synth({
       oscillator: { type: "sine" },
-      envelope: { attack: 0.005, decay: 0.08, sustain: 0.0, release: 0.16 }
+      envelope: { attack: 0.004, decay: 0.07, sustain: 0.0, release: 0.17 }
     });
-    bird.chain(birdTremolo, birdFilter, reverb);
-    bird.volume.value = -20;
+    bird.chain(birdTremolo, birdFilter, filter);
+    bird.volume.value = -19;
   }
 
   function keyFromSeason(season){
@@ -520,6 +535,8 @@
   }
 
   function randomBetween(min, max){ return min + Math.random() * (max - min); }
+  function randInt(min, max){ return Math.floor(min + Math.random() * (max - min + 1)); }
+  function choose(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
 
   function getEnv(){
     const seasonSel = document.getElementById("seasonSel").value;
@@ -562,24 +579,27 @@
     if (env.time === "late") bpm = 54;
     Tone.Transport.bpm.value = bpm;
 
-    let cutoff = 1800, wet = 0.30;
-    if (env.weatherCat === "clear") { cutoff = 2600; wet = 0.20; }
-    if (env.weatherCat === "other") { cutoff = 1800; wet = 0.32; }
-    if (env.weatherCat === "rain")  { cutoff = 1300; wet = 0.44; }
+    // filter + reverb feel
+    let cutoff = 1900, wet = 0.42, decay = 14.5;
+    if (env.weatherCat === "clear") { cutoff = 2800; wet = 0.34; decay = 12.0; }
+    if (env.weatherCat === "other") { cutoff = 1900; wet = 0.44; decay = 14.0; }
+    if (env.weatherCat === "rain")  { cutoff = 1350; wet = 0.52; decay = 16.5; }
 
     const uv = (typeof lastWeather.uv === "number") ? lastWeather.uv : null;
     const isDay = (env.time === "day" || env.time === "morning" || env.time === "evening");
     if (uv !== null && isDay){
       const u = clamp(uv / 11, 0, 1);
-      cutoff += 520 * u;
+      cutoff += 560 * u;
       wet    -= 0.06 * u;
+      decay  -= 1.2 * u;
     }
 
-    filter.frequency.value = clamp(cutoff, 900, 3400);
-    reverb.wet.value = clamp(wet, 0.18, 0.60);
+    filter.frequency.value = clamp(cutoff, 950, 3600);
+    masterReverb.wet.value = clamp(wet, 0.28, 0.70);
+    masterReverb.decay = clamp(decay, 9.0, 20.0);
 
     if (birdFilter){
-      birdFilter.frequency.value = (env.weatherCat === "rain") ? 1900 : 2300;
+      birdFilter.frequency.value = (env.weatherCat === "rain") ? 1950 : 2350;
     }
 
     const windText = `${(lastWeather.wind ?? 0).toFixed(1)} m/s`;
@@ -600,6 +620,22 @@
     }
   }
 
+  // ✅ ハーモニーの「長さは維持」しつつ「頻度だけ増やす」：gapだけ短くする
+  function harmonyGapSeconds(r){
+    // いまの長さ感を保ちつつ、出現頻度アップ（gapを縮める）
+    let g = randomBetween(1.4, 4.2); // 旧 3〜8 より短い
+    if (r.time === "late") g *= 1.25;
+    if (r.time === "night") g *= 1.10;
+    if (r.weatherCat === "rain") g *= 1.15;
+    return clamp(g, 1.2, 6.0);
+  }
+
+  // ✅ ハーモニーの音程の高低をランダムに（±1〜2oct）
+  function octaveShifted(note, octShift){
+    const f = Tone.Frequency(note);
+    return f.transpose(12 * octShift).toNote();
+  }
+
   function playOneHarmony(startTime, r){
     const choices = chordChoicesForKey(r.key);
 
@@ -607,8 +643,16 @@
     if (root === lastRoot) root = choices[Math.floor(Math.random() * choices.length)];
     lastRoot = root;
 
+    // 長さは維持（26〜52s）
     const playDur = randomBetween(26.0, 52.0);
-    const gapDur  = randomBetween(3.0, 8.0);
+    // gapだけ短縮して頻度増
+    const gapDur  = harmonyGapSeconds(r);
+
+    // octave shift: -1, 0, +1, たまに +2 / -2
+    let oct = choose([-1, 0, 0, 0, +1, +1]);
+    if (Math.random() < 0.10) oct = choose([-2, +2]);
+
+    const shiftedRoot = octaveShifted(root, oct);
 
     const chordGain = new Tone.Gain(0.000001).connect(filter);
     const chordPad = new Tone.PolySynth(Tone.Synth, {
@@ -616,15 +660,13 @@
       envelope: { attack: 2.2, decay: 0.6, sustain: 0.82, release: 18.0 }
     }).connect(chordGain);
 
-    // ✅ Harmonyの全体音量を少し下げる（-15 → -18）
+    // harmony 音量
     chordPad.volume.value = -18;
 
-    // ✅ Harmonyの最大音量（peak）を下げる（上限を削る）
-    // 旧: 0.22 + rand*0.30（0.22〜0.52）
-    // 新: 0.16 + rand*0.18（0.16〜0.34）
-    let peak = 0.16 + Math.random() * 0.18;
-    if (r.time === "night" || r.time === "late") peak *= 0.75;
-    if (r.weatherCat === "rain") peak *= 0.85;
+    // peak（過大にならないよう控えめ）
+    let peak = 0.15 + Math.random() * 0.17; // 0.15〜0.32
+    if (r.time === "night" || r.time === "late") peak *= 0.78;
+    if (r.weatherCat === "rain") peak *= 0.86;
 
     const t0 = startTime;
     const tPeak = startTime + playDur * (0.35 + Math.random() * 0.35);
@@ -634,9 +676,10 @@
     chordGain.gain.exponentialRampToValueAtTime(Math.max(0.00018, peak), tPeak);
     chordGain.gain.exponentialRampToValueAtTime(0.00012, tEnd);
 
-    chordPad.triggerAttackRelease(triad(root), playDur, startTime, 0.72);
+    // triadも同じoctでズラす（rootのoctを反映）
+    const tri = triad(shiftedRoot);
+    chordPad.triggerAttackRelease(tri, playDur, startTime, 0.72);
 
-    // ✅ ここが止まらない化の核心：Transportでdispose予約しない
     const disposeAt = tEnd + 22.0;
     scheduleDispose(chordPad, chordGain, disposeAt);
 
@@ -647,23 +690,73 @@
     }, nextTime);
   }
 
-  function pickFineDelayTimeSeconds(r){
-    const night = (r.time === "night" || r.time === "late");
-    const rain  = (r.weatherCat === "rain");
-    const shortSet = ["64n","32n","16t","24n"];
-    const midSet   = ["32n","24n","16n","16t"];
-    const set = (night || rain) ? midSet : shortSet;
-    const base = set[Math.floor(Math.random() * set.length)];
-    const baseSec = Tone.Time(base).toSeconds();
-    const jitter = (Math.random() * 0.05) - 0.025;
-    return clamp(baseSec + jitter, 0.02, 0.25);
+  // =========================
+  // Sparkle: delayを「4〜5つ以上」ランダムに積む（MultiTap）
+  // =========================
+  function buildMultiTapDelay(){
+    // 既存を掃除
+    if (sparkleDelay) { try{ sparkleDelay.dispose(); }catch(e){} }
+    // panner側の接続は作り直す
+    if (sparklePanner) { try{ sparklePanner.dispose(); }catch(e){} }
+
+    // 新しい panner
+    sparklePanner = new Tone.Panner(0).connect(filter);
+
+    const taps = randInt(4, 7); // 4〜5以上（最大7）
+    const merger = new Tone.Gain(1).connect(sparklePanner);
+
+    // 「ディレイをもっとつけて」＝wet/feedbackも少し上げる
+    const wetBase = randomBetween(0.40, 0.62);
+
+    const tapNodes = [];
+    for (let i = 0; i < taps; i++){
+      const dt = randomBetween(0.03, 0.23);              // 秒（微細＆ランダム）
+      const fb = randomBetween(0.18, 0.44) * (1 - i*0.08); // 後段ほど控えめ
+      const wt = clamp(wetBase * (0.85 - i*0.06), 0.18, 0.65);
+
+      const d = new Tone.FeedbackDelay({ delayTime: dt, feedback: fb, wet: wt });
+      d.connect(merger);
+      tapNodes.push(d);
+    }
+
+    // 入力としてまとめる
+    const input = new Tone.Gain(1);
+    tapNodes.forEach(d => input.connect(d));
+
+    // 返却：sparkleSynthは input に繋ぐ
+    return { input, taps, wetBase, tapNodes };
+  }
+
+  let sparkleMulti = null;
+
+  function pickSparkleDelayRefreshChance(r){
+    // 変化しすぎると不自然なので、たまに組み替える
+    if (r.time === "day") return 0.06;
+    if (r.time === "morning") return 0.05;
+    if (r.time === "evening") return 0.04;
+    if (r.time === "night") return 0.03;
+    return 0.02;
+  }
+
+  function rebuildSparkleDelayIfNeeded(r){
+    if (!sparkleMulti){
+      sparkleMulti = buildMultiTapDelay();
+      sparkle.disconnect();
+      sparkle.connect(sparkleMulti.input);
+      return;
+    }
+    if (Math.random() < pickSparkleDelayRefreshChance(r)){
+      // 組み替え
+      sparkleMulti.tapNodes.forEach(n => { try{ n.dispose(); } catch(e){} });
+      try{ sparkleMulti.input.dispose(); } catch(e){}
+      sparkleMulti = buildMultiTapDelay();
+      sparkle.disconnect();
+      sparkle.connect(sparkleMulti.input);
+    }
   }
 
   function rebuildLoops(){
-    // ✅ rebuildのたびに残骸を全部掃除（ここが効く）
     disposeAllChords();
-
-    // cancelは残してOK（dispose予約がTransport依存じゃないから安全）
     Tone.Transport.cancel(0);
 
     if (sparkleLoop) { sparkleLoop.dispose(); sparkleLoop = null; }
@@ -671,106 +764,113 @@
     clearHarmonyScheduler();
 
     const r = applyParams();
+
+    // harmony start
     const startAt = Tone.Transport.seconds + 0.1;
     chordEventId = Tone.Transport.scheduleOnce((t) => playOneHarmony(t, r), startAt);
 
-    // Sparkle
-    const sparkleInterval = 0.58;
+    // ✅ multi-tap delay を初回生成
+    rebuildSparkleDelayIfNeeded(r);
+
+    // Sparkle / Rhythm
+    const sparkleInterval = 0.52; // 少しだけ密度UP
     sparkleLoop = new Tone.Loop((time) => {
+      // 状況に応じて、ときどきディレイ構造を組み替え
+      rebuildSparkleDelayIfNeeded(r);
+
       const scale = sparkleScale(r.key, r.weatherCat, r.time);
 
-      let p = 0.58;
-      if (r.weatherCat === "rain") p = 0.44;
-      if (r.time === "late") p = 0.30;
-      if (r.time === "night") p = Math.min(p, 0.40);
-      if (r.weatherCat === "clear" && (r.time === "day" || r.time === "morning")) p = 0.64;
+      let p = 0.60;
+      if (r.weatherCat === "rain") p = 0.50;
+      if (r.time === "late") p = 0.36;
+      if (r.time === "night") p = Math.min(p, 0.44);
+      if (r.weatherCat === "clear" && (r.time === "day" || r.time === "morning")) p = 0.70;
 
-      const windBoost = clamp(((lastWeather.wind ?? 0) - 2) / 10, 0, 0.12);
+      const windBoost = clamp(((lastWeather.wind ?? 0) - 2) / 10, 0, 0.14);
       p += windBoost;
 
       const uv = (typeof lastWeather.uv === "number") ? lastWeather.uv : null;
       if (uv !== null && (r.time === "day" || r.time === "morning")){
         const u = clamp(uv / 11, 0, 1);
-        p += 0.10 * u;
+        p += 0.12 * u;
       }
-
-      p = clamp(p, 0.12, 0.78);
+      p = clamp(p, 0.14, 0.82);
 
       if (Math.random() < p){
-        sparkleDelay.delayTime.setValueAtTime(pickFineDelayTimeSeconds(r), time);
-
-        const pan = (Math.random() * 1.6) - 0.8;
+        const pan = (Math.random() * 1.7) - 0.85;
         sparklePanner.pan.cancelScheduledValues(time);
         sparklePanner.pan.setValueAtTime(sparklePanner.pan.value, time);
         sparklePanner.pan.linearRampToValueAtTime(pan, time + 0.06);
 
         const note = scale[Math.floor(Math.random() * scale.length)];
-        if (Math.random() < 0.12){
+        if (Math.random() < 0.16){
           const note2 = scale[Math.floor(Math.random() * scale.length)];
           sparkle.triggerAttackRelease(note, 0.12, time, 0.44);
-          sparkle.triggerAttackRelease(note2, 0.12, time + 0.02, 0.34);
+          sparkle.triggerAttackRelease(note2, 0.12, time + 0.02, 0.36);
         } else {
           sparkle.triggerAttackRelease(note, 0.12, time, 0.44);
         }
+
+        // ✅ 4〜5以上の多段ディレイが「後ろで勝手に鳴る」ので、ここで追加発音は控えめに
       }
     }, sparkleInterval).start(0);
 
     // =========================
-    // 🐦 Bird (chirp)
+    // 🐦 Bird (chirp) - 増やす
     // =========================
     function birdChance(){
-      let base = 0.045;
+      let base = 0.08; // 旧 0.045 → 増
 
-      if (r.time === "morning") base = 0.11;
-      if (r.time === "day")     base = 0.18;
-      if (r.time === "evening") base = 0.08;
-      if (r.time === "night")   base = 0.018;
-      if (r.time === "late")    base = 0.006;
+      if (r.time === "morning") base = 0.18;
+      if (r.time === "day")     base = 0.26;
+      if (r.time === "evening") base = 0.14;
+      if (r.time === "night")   base = 0.04;
+      if (r.time === "late")    base = 0.018;
 
-      if (r.weatherCat === "rain")  base *= 0.55;
-      if (r.weatherCat === "clear" && (r.time === "day" || r.time === "morning")) base *= 1.12;
+      if (r.weatherCat === "rain")  base *= 0.70;
+      if (r.weatherCat === "clear" && (r.time === "day" || r.time === "morning")) base *= 1.10;
 
       const w = clamp(lastWeather.wind ?? 0, 0, 15);
-      base *= (1.0 + 0.10 * (w / 15));
+      base *= (1.0 + 0.12 * (w / 15));
 
       const uv = (typeof lastWeather.uv === "number") ? lastWeather.uv : null;
       if (uv !== null && r.time === "day") {
         const u = clamp(uv / 11, 0, 1);
-        base *= (1.0 + 0.10 * u);
+        base *= (1.0 + 0.12 * u);
       }
 
-      return clamp(base, 0.004, 0.25);
+      return clamp(base, 0.010, 0.40);
     }
 
     function chirp(time, amp = 0.30){
-      const base = 1450 + Math.random()*650;
-      const up   = base + 900 + Math.random()*520;
-      const dur  = 0.055 + Math.random()*0.060;
+      const base = 1450 + Math.random()*700;
+      const up   = base + 980 + Math.random()*560;
+      const dur  = 0.055 + Math.random()*0.070;
 
       bird.frequency.setValueAtTime(base, time);
       bird.frequency.linearRampToValueAtTime(up, time + dur);
-      bird.frequency.linearRampToValueAtTime(base + 220, time + dur + 0.03);
+      bird.frequency.linearRampToValueAtTime(base + 240, time + dur + 0.03);
 
       bird.triggerAttackRelease("C6", dur + 0.06, time, amp);
     }
 
     function phrase(time){
-      const n = (Math.random() < 0.55) ? 2 : (Math.random() < 0.80 ? 3 : 4);
-      const baseGap = 0.11 + Math.random()*0.10;
+      const n = (Math.random() < 0.50) ? 2 : (Math.random() < 0.80 ? 3 : 5); // たまに5
+      const baseGap = 0.10 + Math.random()*0.09;
 
       for (let i = 0; i < n; i++){
         const t = time + i*(baseGap + Math.random()*0.06);
-        const amp = 0.26 + Math.random()*0.10;
+        const amp = 0.26 + Math.random()*0.12;
         chirp(t, amp);
       }
     }
 
     function birdLoopIntervalSeconds(){
-      if (r.time === "day") return 1.9;
-      if (r.time === "morning") return 2.1;
-      if (r.time === "evening") return 2.4;
-      if (r.time === "night") return 3.2;
-      return 4.0;
+      if (r.time === "day") return 1.55;     // 旧 1.9
+      if (r.time === "morning") return 1.70; // 旧 2.1
+      if (r.time === "evening") return 2.05; // 旧 2.4
+      if (r.time === "night") return 2.80;   // 旧 3.2
+      return 3.40;                           // 旧 4.0
     }
 
     birdLoop = new Tone.Loop((time) => {
@@ -779,28 +879,25 @@
       const p = birdChance();
       if (Math.random() < p){
         if (r.time === "night" || r.time === "late"){
-          chirp(time, 0.24);
-          if (Math.random() < 0.12) chirp(time + 0.18 + Math.random()*0.10, 0.22);
+          // 夜でも「少し増やす」けど控えめ
+          chirp(time, 0.23);
+          if (Math.random() < 0.22) chirp(time + 0.16 + Math.random()*0.10, 0.21);
           return;
         }
 
         const roll = Math.random();
-        if (roll < 0.52){
-          chirp(time, 0.28 + Math.random()*0.08);
-          if (Math.random() < (r.time === "day" ? 0.55 : 0.40)){
-            chirp(time + 0.14 + Math.random()*0.10, 0.24 + Math.random()*0.08);
+        if (roll < 0.46){
+          chirp(time, 0.28 + Math.random()*0.10);
+          if (Math.random() < (r.time === "day" ? 0.62 : 0.46)){
+            chirp(time + 0.12 + Math.random()*0.12, 0.24 + Math.random()*0.10);
           }
-        } else if (roll < 0.82){
-          const n = (Math.random() < 0.65) ? 2 : 3;
+        } else if (roll < 0.80){
+          const n = (Math.random() < 0.55) ? 2 : 4; // 多め
           for (let i=0; i<n; i++){
-            chirp(time + i*(0.12 + Math.random()*0.09), 0.24 + Math.random()*0.10);
+            chirp(time + i*(0.11 + Math.random()*0.10), 0.23 + Math.random()*0.12);
           }
         } else {
-          if (r.time === "day" || Math.random() < 0.55) phrase(time);
-          else {
-            chirp(time, 0.28);
-            chirp(time + 0.16 + Math.random()*0.10, 0.24);
-          }
+          phrase(time);
         }
       }
     }, birdLoopIntervalSeconds()).start(0);
@@ -860,8 +957,14 @@
     Tone.Transport.stop();
     Tone.Transport.cancel(0);
 
-    // ✅ 止めたら残骸も全部掃除
     disposeAllChords();
+
+    // ✅ multi-tap も掃除
+    if (sparkleMulti){
+      sparkleMulti.tapNodes.forEach(n => { try{ n.dispose(); } catch(e){} });
+      try{ sparkleMulti.input.dispose(); } catch(e){}
+      sparkleMulti = null;
+    }
 
     setStatusChip(describeWeather(lastWeather.code));
     setStatus("停止中", "—");
