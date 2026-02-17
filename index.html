@@ -62,26 +62,30 @@
               </div>
               <div class="text-left">
                 <div id="btnLabel" class="text-xl font-semibold">Start</div>
-                <!-- AirPlay文言削除 -->
                 <div id="btnSub" class="text-xs text-white/75">タップで再生</div>
               </div>
             </div>
           </button>
-
-          <!-- 状態は設定へ移動（ここには出さない） -->
 
           <!-- Minimal metrics -->
           <div class="mt-4 grid grid-cols-2 gap-3">
             <div class="rounded-2xl bg-white/75 border border-slate-200 p-4">
               <div class="text-xs text-slate-500">天気</div>
               <div id="weatherText" class="mt-1 text-base font-medium">—</div>
-              <!-- 天気コードを非表示 -->
+              <!-- 天気コード（非表示のまま残す） -->
               <div class="hidden mt-2 text-[11px] text-slate-500">コード: <span id="weatherCode">—</span></div>
             </div>
+
             <div class="rounded-2xl bg-white/75 border border-slate-200 p-4">
               <div class="text-xs text-slate-500">風速</div>
               <div class="mt-1 text-base font-medium"><span id="windSpeed">—</span> m/s</div>
-              <!-- 密度を非表示 -->
+
+              <!-- ✅ UV指数をUIに表示 -->
+              <div class="mt-2 text-xs text-slate-500">
+                UV指数: <span id="uvIndex" class="tabular-nums">—</span>
+              </div>
+
+              <!-- 密度（非表示のまま残す） -->
               <div class="hidden mt-2 text-[11px] text-slate-500">密度: <span id="density">—</span></div>
             </div>
           </div>
@@ -107,8 +111,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 外枠AirPlay文言は削除 -->
     </div>
   </main>
 
@@ -171,9 +173,6 @@
             </div>
           </div>
 
-          <!-- 設定内の「いま更新」削除 -->
-          <!-- 位置情報が使えない場合（手入力）削除 -->
-
           <div class="mt-4 text-[11px] text-slate-500">
             ロック画面表示：再生開始後にOS側へ情報を渡します（完全保証ではないよ）
           </div>
@@ -217,15 +216,22 @@
     const url = new URL(OPEN_METEO_URL);
     url.searchParams.set("latitude", lat);
     url.searchParams.set("longitude", lon);
-    url.searchParams.set("current", "weather_code,wind_speed_10m");
+    // ✅ UV指数を追加
+    url.searchParams.set("current", "weather_code,wind_speed_10m,uv_index");
     url.searchParams.set("timezone", "auto");
+
     const res = await fetch(url.toString());
     if (!res.ok) throw new Error("天気取得に失敗しました");
     const data = await res.json();
+
     const code = data?.current?.weather_code;
     const wind = data?.current?.wind_speed_10m;
-    if (typeof code !== "number" || typeof wind !== "number") throw new Error("天気データ形式が想定と違います");
-    return { code, wind };
+    const uv   = (typeof data?.current?.uv_index === "number") ? data.current.uv_index : 0;
+
+    if (typeof code !== "number" || typeof wind !== "number") {
+      throw new Error("天気データ形式が想定と違います");
+    }
+    return { code, wind, uv };
   }
 
   function getCurrentPosition() {
@@ -317,7 +323,7 @@
   }
 
   // =========================
-  // Music（そのまま）
+  // Music（そのまま + 風ディレイ揺れ + UV昼の透明感）
   // =========================
   let isRunning = false;
   let reverb, filter;
@@ -328,7 +334,7 @@
   let sparkleLoop, birdLoop;
   let chordEventId = null;
 
-  let lastWeather = { code: 0, wind: 0 };
+  let lastWeather = { code: 0, wind: 0, uv: 0 };
   let lastRoot = null;
 
   const HARM_PLAY_MIN = 26.0;
@@ -418,20 +424,31 @@
     if (env.time === "late") bpm = 54;
     Tone.Transport.bpm.value = bpm;
 
+    // 天気で空気の質
     let cutoff = 1800, wet = 0.30;
     if (env.weatherCat === "clear") { cutoff = 2600; wet = 0.20; }
     if (env.weatherCat === "other") { cutoff = 1800; wet = 0.32; }
     if (env.weatherCat === "rain")  { cutoff = 1300; wet = 0.44; }
 
-    filter.frequency.value = clamp(cutoff, 900, 3200);
-    reverb.wet.value = clamp(wet, 0.18, 0.60);
+    // ✅ UVで「昼の透明感」だけ足す
+    const uv = clamp(lastWeather.uv ?? 0, 0, 11);
+    const uv01 = uv / 11;
+
+    if (env.time === "day") {
+      cutoff = cutoff + uv01 * 700; // 透明感
+      wet = wet - uv01 * 0.10;      // 乾き
+    }
+
+    filter.frequency.value = clamp(cutoff, 900, 3600);
+    reverb.wet.value = clamp(wet, 0.15, 0.60);
 
     if (birdFilter){
       birdFilter.frequency.value = (env.weatherCat === "rain") ? 1900 : 2300;
     }
 
     const windText = `${lastWeather.wind.toFixed(1)} m/s`;
-    setMediaSessionMetadata(`${env.season} / ${env.weatherCat} / wind ${windText}`);
+    const uvText = `UV ${uv.toFixed(1)}`;
+    setMediaSessionMetadata(`${env.season} / ${env.weatherCat} / ${windText} / ${uvText}`);
 
     setStatus(`再生中：${env.season}/${env.time}/${env.weatherCat}（Key:${key}）`);
     return { ...env, key };
@@ -486,20 +503,29 @@
     }, nextTime);
   }
 
+  // ✅ ②：風でディレイの揺れ幅を変える
   function pickFineDelayTimeSeconds(r){
     const night = (r.time === "night" || r.time === "late");
     const rain  = (r.weatherCat === "rain");
+
     const shortSet = ["64n","32n","16t","24n"];
     const midSet   = ["32n","24n","16n","16t"];
     const set = (night || rain) ? midSet : shortSet;
+
     const base = set[Math.floor(Math.random() * set.length)];
     const baseSec = Tone.Time(base).toSeconds();
-    const jitter = (Math.random() * 0.05) - 0.025;
+
+    const w = clamp(lastWeather.wind ?? 0, 0, 15);
+    const wind01 = w / 15;
+
+    const jitterMax = 0.010 + wind01 * 0.045; // 0.01〜0.055秒
+    const jitter = (Math.random() * jitterMax * 2) - jitterMax;
+
     return clamp(baseSec + jitter, 0.02, 0.25);
   }
 
   function rebuildLoops(){
-    // ★重要：残ってるscheduleOnceを掃除（これで「Stopしても次が鳴る」を潰す）
+    // ★残ってるscheduleOnceを掃除（Stopしても次が鳴る対策）
     Tone.Transport.cancel(0);
 
     if (sparkleLoop) { sparkleLoop.dispose(); sparkleLoop = null; }
@@ -572,11 +598,15 @@
     }, 2.4).start(0);
   }
 
-  function updateUI({ code, wind }){
+  function updateUI({ code, wind, uv }){
     document.getElementById("weatherText").textContent = describeWeather(code);
     document.getElementById("weatherCode").textContent = String(code);
     document.getElementById("windSpeed").textContent = wind.toFixed(1);
     document.getElementById("density").textContent = (1 / windToIntervalSeconds(wind)).toFixed(1) + " notes/sec";
+
+    // ✅ UV表示（UI）
+    const uvEl = document.getElementById("uvIndex");
+    if (uvEl) uvEl.textContent = (typeof uv === "number" ? uv : 0).toFixed(1);
   }
 
   function setButtonState(){
@@ -608,10 +638,9 @@
     updatePlaybackState();
   }
 
-  // ★Stopしても止まらない対策：開始時に必ずミュート解除
   async function start(){
     ensureAudioGraph();
-    Tone.Destination.mute = false; // ←重要
+    Tone.Destination.mute = false;
     await Tone.start();
     Tone.Transport.start();
     rebuildLoops();
@@ -619,11 +648,10 @@
     setButtonState();
   }
 
-  // ★Stopしても止まらない対策：即ミュート + 全スケジュール削除
   function stop(){
     isRunning = false;
 
-    // 余韻ごと一瞬で無音にする
+    // 余韻ごと即ミュート
     Tone.Destination.mute = true;
 
     clearHarmonyScheduler();
@@ -631,7 +659,7 @@
     if (birdLoop)    { birdLoop.stop(); birdLoop.dispose(); birdLoop = null; }
 
     Tone.Transport.stop();
-    Tone.Transport.cancel(0); // ←重要（残ったscheduleOnceを根こそぎ）
+    Tone.Transport.cancel(0);
 
     setStatus("停止中（Startで再開）");
     setButtonState();
@@ -644,8 +672,8 @@
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
 
-      const { code, wind } = await fetchWeatherByCoords(lat, lon);
-      lastWeather = { code, wind };
+      const { code, wind, uv } = await fetchWeatherByCoords(lat, lon);
+      lastWeather = { code, wind, uv };
       updateUI(lastWeather);
 
       nextUpdateAt = Date.now() + AUTO_UPDATE_MS;
