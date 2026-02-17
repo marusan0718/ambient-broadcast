@@ -20,6 +20,7 @@
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
     }
+    input[type="range"]{ accent-color:#0f172a; }
   </style>
 </head>
 
@@ -38,7 +39,7 @@
               <h1 class="mt-3 text-2xl font-semibold tracking-tight">Ambient Music</h1>
 
               <p class="mt-1 text-sm text-slate-600">季節、天気、風のゆらぎ。</p>
-              <p class="mt-1 text-sm text-slate-600">いまこの瞬間の自然と同期し、音楽を紡ぐ。</p>
+              <p class="mt-1 text-sm text-slate-600">この瞬間の自然と呼吸を合わせ、音は静かに生まれていく。</p>
             </div>
 
             <div class="text-right">
@@ -64,7 +65,6 @@
             </div>
           </button>
 
-          <!-- 状態 -->
           <div class="mt-4">
             <div class="rounded-2xl bg-white/75 border border-slate-200 px-4 py-3">
               <div class="flex items-center justify-between">
@@ -105,7 +105,6 @@
 
     <div class="absolute inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6">
       <div class="w-full max-w-[560px] rounded-[28px] bg-white/95 border border-slate-200 shadow-2xl overflow-hidden">
-        <!-- header -->
         <div class="px-5 sm:px-6 pt-4 pb-3 border-b border-slate-200">
           <div class="flex items-center justify-between gap-3">
             <div class="text-sm font-semibold text-slate-800">設定</div>
@@ -115,7 +114,6 @@
             </button>
           </div>
 
-          <!-- Tabs -->
           <div class="mt-3 flex gap-2">
             <button data-tab="tabSettings"
               class="tabBtn flex-1 px-3 py-2 rounded-2xl text-sm border border-slate-200 bg-slate-900 text-white">
@@ -128,10 +126,8 @@
           </div>
         </div>
 
-        <!-- body -->
         <div class="px-5 sm:px-6 py-4 max-h-[70vh] overflow-y-auto ios-scroll">
-          <!-- ===== Tab: Settings ===== -->
-          <section id="tabSettings">
+          <section id="tabSettings" class="space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <div class="text-xs text-slate-500 mb-1">季節</div>
@@ -164,9 +160,80 @@
                 </select>
               </div>
             </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="text-sm font-semibold text-slate-800">自然音の頻度（手動）</div>
+              <p class="mt-1 text-xs text-slate-600">
+                Autoは「時間帯・天気」に合わせて自動。手動にすると、ここで頻度を上書きできます。
+              </p>
+
+              <div class="mt-3 space-y-4">
+                <div class="rounded-2xl bg-white border border-slate-200 p-4">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="text-sm font-medium text-slate-800">鳥</div>
+                    <div class="flex items-center gap-2">
+                      <select id="birdMode" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                        <option value="auto">Auto</option>
+                        <option value="manual">手動</option>
+                      </select>
+                      <div class="text-xs text-slate-500 w-20 text-right tabular-nums">
+                        <span id="birdVal">—</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3">
+                    <input id="birdFreq" type="range" min="0" max="100" value="55" class="w-full" />
+                    <div class="mt-1 flex justify-between text-[11px] text-slate-500">
+                      <span>少</span><span>多</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="rounded-2xl bg-white border border-slate-200 p-4">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="text-sm font-medium text-slate-800">風</div>
+                    <div class="flex items-center gap-2">
+                      <select id="windMode" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                        <option value="auto">Auto</option>
+                        <option value="manual">手動</option>
+                      </select>
+                      <div class="text-xs text-slate-500 w-20 text-right tabular-nums">
+                        <span id="windVal">—</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3">
+                    <input id="windFreq" type="range" min="0" max="100" value="45" class="w-full" />
+                    <div class="mt-1 flex justify-between text-[11px] text-slate-500">
+                      <span>少</span><span>多</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="rounded-2xl bg-white border border-slate-200 p-4">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="text-sm font-medium text-slate-800">水</div>
+                    <div class="flex items-center gap-2">
+                      <select id="waterMode" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                        <option value="auto">Auto</option>
+                        <option value="manual">手動</option>
+                      </select>
+                      <div class="text-xs text-slate-500 w-20 text-right tabular-nums">
+                        <span id="waterVal">—</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3">
+                    <input id="waterFreq" type="range" min="0" max="100" value="50" class="w-full" />
+                    <div class="mt-1 flex justify-between text-[11px] text-slate-500">
+                      <span>少</span><span>多</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </section>
 
-          <!-- ===== Tab: Guide ===== -->
           <section id="tabGuide" class="hidden">
             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div class="text-sm font-semibold text-slate-800">このアプリの仕組み</div>
@@ -178,7 +245,7 @@
             <div class="mt-3 space-y-3">
               <details class="rounded-2xl border border-slate-200 bg-white p-4">
                 <summary class="cursor-pointer select-none flex items-center justify-between">
-                  <span class="text-sm font-medium text-slate-800">季節（キー：調）</span>
+                  <span class="text-sm font-medium text-slate-800">季節（キー・調）</span>
                   <span class="text-slate-400">▾</span>
                 </summary>
                 <div class="mt-3 text-sm text-slate-700 leading-relaxed">
@@ -193,7 +260,7 @@
                   <span class="text-slate-400">▾</span>
                 </summary>
                 <div class="mt-3 text-sm text-slate-700 leading-relaxed">
-                  朝と昼は、わずかに速く。夜と深夜は、ゆっくりと。体感の“呼吸”を時間帯に寄せながら、背景の白も静かに移ろいます。
+                  朝と昼は、わずかに速く。夜と深夜は、ゆっくりと。体感の“呼吸”を時間帯に寄せながら、背景の色も静かに移ろいます。
                 </div>
               </details>
 
@@ -209,7 +276,7 @@
 
               <details class="rounded-2xl border border-slate-200 bg-white p-4">
                 <summary class="cursor-pointer select-none flex items-center justify-between">
-                  <span class="text-sm font-medium text-slate-800">風（ゆらぎ：きらめき密度）</span>
+                  <span class="text-sm font-medium text-slate-800">風（ゆらぎ）</span>
                   <span class="text-slate-400">▾</span>
                 </summary>
                 <div class="mt-3 text-sm text-slate-700 leading-relaxed">
@@ -220,7 +287,7 @@
 
               <details class="rounded-2xl border border-slate-200 bg-white p-4">
                 <summary class="cursor-pointer select-none flex items-center justify-between">
-                  <span class="text-sm font-medium text-slate-800">UV（昼の光：明るさ補正）</span>
+                  <span class="text-sm font-medium text-slate-800">UV（きらめき）</span>
                   <span class="text-slate-400">▾</span>
                 </summary>
                 <div class="mt-3 text-sm text-slate-700 leading-relaxed">
@@ -231,11 +298,11 @@
 
               <details class="rounded-2xl border border-slate-200 bg-white p-4">
                 <summary class="cursor-pointer select-none flex items-center justify-between">
-                  <span class="text-sm font-medium text-slate-800">鳥（囀り）</span>
+                  <span class="text-sm font-medium text-slate-800">鳥（さえずり）</span>
                   <span class="text-slate-400">▾</span>
                 </summary>
                 <div class="mt-3 text-sm text-slate-700 leading-relaxed">
-                  朝から昼にかけては、景色の“気配”として囀りをほんの少しだけ添えています。主役にならないよう、短いフレーズと単発を織り交ぜながら、空気に自然と溶け込む範囲にとどめています。夜と深夜は、その静けさを何よりも優先します。
+                  朝から昼にかけてほんの少しだけ添えています。主役にならないよう、短いフレーズと単発を織り交ぜながら、空気に自然と溶け込む範囲にとどめています。夜と深夜は、その静けさを何よりも優先します。
                 </div>
               </details>
 
@@ -245,8 +312,7 @@
                   <span class="text-slate-400">▾</span>
                 </summary>
                 <div class="mt-3 text-sm text-slate-700 leading-relaxed">
-                  響きは、その調の中でも穏やかな三和音だけを選び、不安定さを生む和音はあえて用いません。安心して身を預けられる響きを紡いでいます。<br>
-                  ときどき、余韻が消える前に次の和音が重なり、景色のレイヤーが増える瞬間が生まれます。
+その調の中でも穏やかな三和音だけを選び、安心して身を預けられる響きを紡いでいます。
                 </div>
               </details>
             </div>
@@ -413,36 +479,112 @@
   }
 
   // =========================
+  // Manual frequency settings
+  // =========================
+  function readRange01(id){
+    const v = Number(document.getElementById(id).value || 0);
+    return clamp(v / 100, 0, 1);
+  }
+  function modeOf(id){ return document.getElementById(id).value; }
+
+  function uiFreqFactor(kind, r){
+    const modeId = kind + "Mode";
+    const rangeId = kind + "Freq";
+
+    if (modeOf(modeId) === "manual"){
+      return readRange01(rangeId);
+    }
+
+    if (kind === "bird"){
+      let base = 0.55;
+      if (r.time === "day") base = 0.70;
+      if (r.time === "morning") base = 0.62;
+      if (r.time === "evening") base = 0.52;
+      if (r.time === "night") base = 0.20;
+      if (r.time === "late") base = 0.08;
+      if (r.weatherCat === "rain") base *= 0.70;
+      return clamp(base, 0, 1);
+    }
+
+    if (kind === "wind"){
+      const w = clamp(lastWeather.wind ?? 0, 0, 15);
+      let base = 0.45 + 0.40 * (w/15);
+      if (r.time === "late") base *= 0.70;
+      if (r.time === "night") base *= 0.82;
+      if (r.weatherCat === "rain") base *= 0.90;
+      return clamp(base, 0, 1);
+    }
+
+    if (kind === "water"){
+      let base = (r.weatherCat === "rain") ? 0.62 : 0.46;
+      if (r.time === "late") base *= 0.78;
+      if (r.time === "night") base *= 0.88;
+      return clamp(base, 0, 1);
+    }
+    return 0.5;
+  }
+
+  function updateFreqLabels(){
+    if (!lastComputedR) return;
+    const r = lastComputedR;
+
+    const b = uiFreqFactor("bird", r);
+    const w = uiFreqFactor("wind", r);
+    const a = uiFreqFactor("water", r);
+
+    document.getElementById("birdVal").textContent  = Math.round(b*100) + "%";
+    document.getElementById("windVal").textContent  = Math.round(w*100) + "%";
+    document.getElementById("waterVal").textContent = Math.round(a*100) + "%";
+
+    document.getElementById("birdFreq").disabled  = (modeOf("birdMode") !== "manual");
+    document.getElementById("windFreq").disabled  = (modeOf("windMode") !== "manual");
+    document.getElementById("waterFreq").disabled = (modeOf("waterMode") !== "manual");
+
+    document.getElementById("birdFreq").classList.toggle("opacity-40", modeOf("birdMode") !== "manual");
+    document.getElementById("windFreq").classList.toggle("opacity-40", modeOf("windMode") !== "manual");
+    document.getElementById("waterFreq").classList.toggle("opacity-40", modeOf("waterMode") !== "manual");
+  }
+
+  // =========================
   // Music
   // =========================
   let isRunning = false;
 
-  // Master chain
   let masterReverb, masterComp, masterLimiter;
   let filter;
 
-  // rhythm (sparkle)
   let sparkle;
-
-  // bird
   let bird, birdFilter, birdTremolo;
 
-  // wind + water (noise beds)
   let windNoise, windFilter, windGain;
   let waterNoise, waterFilter, waterGain;
 
-  // rhythm: multi tap + auto pan + hit pan
-  let sparkleMulti = null;         // { input, tapNodes, merger }
-  let sparkleAutoPanner = null;    // AutoPanner
-  let sparkleHitPanner = null;     // Panner (per-hit random)
+  let sparkleMulti = null;
+  let sparkleAutoPanner = null;
+  let sparkleHitPanner = null;
 
   let sparkleLoop, birdLoop, windLoop, waterLoop;
   let chordEventId = null;
 
+  // cajon
+  let cajonBody = null;
+  let cajonSnap = null;
+  let cajonGain = null;
+  let cajonReverb = null;
+  let cajonEventId = null;
+
+  // gamelan (NEW)
+  let gamelan = null;
+  let gamelanGain = null;
+  let gamelanReverb = null;
+  let gamelanDelay = null;
+  let gamelanEventId = null;
+
   let lastWeather = { code: 0, wind: 0, uv: null };
   let lastRoot = null;
 
-  // Chord cleanup
+  let lastComputedR = null;
+
   const activeChordTimers = new Set();
   const activeChordNodes = new Set();
 
@@ -475,27 +617,23 @@
   function ensureAudioGraph(){
     if (sparkle) return;
 
-    // Master: limiter -> comp -> reverb -> destination
     masterReverb = new Tone.Reverb({ decay: 14.5, wet: 0.42 }).toDestination();
     masterComp = new Tone.Compressor({ threshold: -18, ratio: 2.2, attack: 0.01, release: 0.22 }).connect(masterReverb);
     masterLimiter = new Tone.Limiter(-1).connect(masterComp);
 
     filter = new Tone.Filter({ type: "lowpass", frequency: 1900, rolloff: -12 }).connect(masterLimiter);
 
-    // ✅ Rhythm output: AutoPan -> HitPan -> filter
     sparkleAutoPanner = new Tone.AutoPanner({ frequency: 0.10, depth: 0.85, wet: 1.0 }).start();
     sparkleHitPanner = new Tone.Panner(0);
     sparkleAutoPanner.connect(sparkleHitPanner);
     sparkleHitPanner.connect(filter);
 
-    // Rhythm synth
     sparkle = new Tone.Synth({
       oscillator: { type: "sine" },
       envelope: { attack: 0.01, decay: 0.10, sustain: 0.0, release: 1.4 }
     });
     sparkle.volume.value = -12;
 
-    // Bird
     birdTremolo = new Tone.Tremolo({ frequency: 9, depth: 0.65, wet: 1.0 }).start();
     birdFilter = new Tone.Filter({ type: "bandpass", frequency: 2300, Q: 6 });
     bird = new Tone.Synth({
@@ -505,17 +643,67 @@
     bird.chain(birdTremolo, birdFilter, filter);
     bird.volume.value = -19;
 
-    // Wind (pink noise bed + bandpass)
     windNoise = new Tone.Noise("pink").start();
     windFilter = new Tone.Filter({ type: "bandpass", frequency: 420, Q: 0.9 });
     windGain = new Tone.Gain(0.000001);
     windNoise.chain(windFilter, windGain, filter);
 
-    // Water (brown noise + highpass/lowpass feel)
     waterNoise = new Tone.Noise("brown").start();
     waterFilter = new Tone.Filter({ type: "lowpass", frequency: 900, rolloff: -12 });
     waterGain = new Tone.Gain(0.000001);
     waterNoise.chain(waterFilter, waterGain, filter);
+
+    // =========================
+    // Cajon
+    // =========================
+    cajonReverb = new Tone.Reverb({
+      decay: 22.0,
+      wet: 0.72,
+      preDelay: 0.02
+    });
+
+    cajonGain = new Tone.Gain(0.12);
+    cajonGain.connect(cajonReverb);
+    cajonReverb.connect(filter);
+
+    cajonBody = new Tone.MembraneSynth({
+      pitchDecay: 0.02,
+      octaves: 2.2,
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.001, decay: 0.20, sustain: 0.0, release: 0.20 }
+    });
+    cajonBody.volume.value = -18;
+    cajonBody.connect(cajonGain);
+
+    cajonSnap = new Tone.NoiseSynth({
+      noise: { type: "white" },
+      envelope: { attack: 0.001, decay: 0.045, sustain: 0.0, release: 0.05 }
+    });
+    cajonSnap.volume.value = -26;
+    cajonSnap.connect(cajonGain);
+
+    // =========================
+    // Gamelan (NEW) — metallic bell-ish
+    // =========================
+    gamelanGain = new Tone.Gain(0.06);
+    gamelanReverb = new Tone.Reverb({ decay: 26.0, wet: 0.78, preDelay: 0.015 });
+    gamelanDelay = new Tone.FeedbackDelay({ delayTime: 0.18, feedback: 0.22, wet: 0.18 });
+
+    // Route: gamelan -> gain -> delay -> deep reverb -> filter
+    gamelanGain.connect(gamelanDelay);
+    gamelanDelay.connect(gamelanReverb);
+    gamelanReverb.connect(filter);
+
+    gamelan = new Tone.MetalSynth({
+      frequency: 220,
+      envelope: { attack: 0.001, decay: 1.8, release: 0.9 },
+      harmonicity: 6.0,
+      modulationIndex: 24,
+      resonance: 2800,
+      octaves: 1.2
+    });
+    gamelan.volume.value = -18;
+    gamelan.connect(gamelanGain);
   }
 
   function keyFromSeason(season){
@@ -556,6 +744,32 @@
     };
     const usePent = (weatherCat === "rain") || (time === "night" || time === "late");
     return usePent ? (pent[key] || pent["C"]) : (major[key] || major["C"]);
+  }
+
+  function transposeNotes(arr, semis){
+    return arr.map(n => Tone.Frequency(n).transpose(semis).toNote());
+  }
+
+  function sparkleScaleWithLow(key, weatherCat, time){
+    const hi = sparkleScale(key, weatherCat, time);
+    const lo1 = transposeNotes(hi, -12);
+    const lo2 = transposeNotes(hi, -24);
+    return { hi, lo1, lo2 };
+  }
+
+  function pickRhythmNote(scalePack, r){
+    let lowP = 0.16;
+    if (r.time === "day" || r.time === "morning") lowP = 0.12;
+    if (r.time === "evening") lowP = 0.16;
+    if (r.time === "night") lowP = 0.22;
+    if (r.time === "late") lowP = 0.26;
+    if (r.weatherCat === "rain") lowP += 0.05;
+    lowP = clamp(lowP, 0.08, 0.38);
+
+    const roll = Math.random();
+    if (roll < lowP * 0.70) return choose(scalePack.lo1);
+    if (roll < lowP) return choose(scalePack.lo2);
+    return choose(scalePack.hi);
   }
 
   function getEnv(){
@@ -599,7 +813,6 @@
     if (env.time === "late") bpm = 54;
     Tone.Transport.bpm.value = bpm;
 
-    // filter + reverb feel
     let cutoff = 1900, wet = 0.42, decay = 14.5;
     if (env.weatherCat === "clear") { cutoff = 2800; wet = 0.34; decay = 12.0; }
     if (env.weatherCat === "other") { cutoff = 1900; wet = 0.44; decay = 14.0; }
@@ -622,7 +835,6 @@
       birdFilter.frequency.value = (env.weatherCat === "rain") ? 1950 : 2350;
     }
 
-    // ✅ AutoPan speed by time
     if (sparkleAutoPanner){
       let f = 0.10;
       if (env.time === "day") f = 0.13;
@@ -634,13 +846,70 @@
       sparkleAutoPanner.depth = (env.weatherCat === "rain") ? 0.75 : 0.85;
     }
 
-    // wind/water filter tone by weather
     if (windFilter){
       windFilter.frequency.value = (env.weatherCat === "rain") ? 360 : 420;
       windFilter.Q.value = (env.time === "late") ? 1.1 : 0.9;
     }
     if (waterFilter){
       waterFilter.frequency.value = (env.weatherCat === "rain") ? 760 : 900;
+    }
+
+    // cajon feel
+    if (cajonReverb){
+      let cWet = 0.72;
+      let cDec = 22.0;
+      if (env.weatherCat === "rain") { cWet = 0.78; cDec = 24.0; }
+      if (env.time === "late") { cWet += 0.04; cDec += 1.5; }
+      if (env.time === "night") { cWet += 0.02; cDec += 0.8; }
+      cajonReverb.wet.value = clamp(cWet, 0.60, 0.92);
+      cajonReverb.decay = clamp(cDec, 14.0, 30.0);
+    }
+    if (cajonGain){
+      let g = 0.12;
+      if (env.time === "day" || env.time === "morning") g = 0.10;
+      if (env.time === "evening") g = 0.12;
+      if (env.time === "night") g = 0.13;
+      if (env.time === "late") g = 0.14;
+      if (env.weatherCat === "rain") g *= 1.06;
+      cajonGain.gain.value = clamp(g, 0.06, 0.18);
+    }
+
+    // gamelan feel (NEW)
+    if (gamelanReverb){
+      let gWet = 0.78;
+      let gDec = 26.0;
+      if (env.weatherCat === "rain") { gWet = 0.82; gDec = 28.0; }
+      if (env.time === "late") { gWet += 0.03; gDec += 1.4; }
+      if (env.time === "night") { gWet += 0.02; gDec += 0.8; }
+      gamelanReverb.wet.value = clamp(gWet, 0.62, 0.92);
+      gamelanReverb.decay = clamp(gDec, 14.0, 32.0);
+    }
+    if (gamelanDelay){
+      let dWet = 0.18;
+      let fb = 0.22;
+      if (env.time === "day" || env.time === "morning") { dWet = 0.16; fb = 0.20; }
+      if (env.time === "night" || env.time === "late") { dWet = 0.20; fb = 0.24; }
+      if (env.weatherCat === "rain") { dWet += 0.03; fb += 0.02; }
+      gamelanDelay.wet.value = clamp(dWet, 0.10, 0.36);
+      gamelanDelay.feedback.value = clamp(fb, 0.12, 0.36);
+    }
+    if (gamelanGain){
+      let g = 0.06;
+      if (env.time === "day") g = 0.055;
+      if (env.time === "morning") g = 0.055;
+      if (env.time === "evening") g = 0.060;
+      if (env.time === "night") g = 0.065;
+      if (env.time === "late") g = 0.070;
+      if (env.weatherCat === "rain") g *= 1.06;
+      gamelanGain.gain.value = clamp(g, 0.03, 0.10);
+    }
+    if (gamelan){
+      // 金属っぽさ調整（時間でほんの少し）
+      let res = 2800;
+      if (env.time === "late") res = 2400;
+      if (env.time === "night") res = 2550;
+      if (env.weatherCat === "rain") res -= 150;
+      gamelan.resonance = clamp(res, 1600, 3400);
     }
 
     const windText = `${(lastWeather.wind ?? 0).toFixed(1)} m/s`;
@@ -651,7 +920,10 @@
     setStatusChip(describeWeather(lastWeather.code));
     if (isRunning) setStatus("再生中", sub);
 
-    return { ...env, key, bpm };
+    lastComputedR = { ...env, key, bpm };
+    updateFreqLabels();
+
+    return lastComputedR;
   }
 
   function clearHarmonyScheduler(){
@@ -661,7 +933,20 @@
     }
   }
 
-  // ✅ ハーモニー出現頻度を「ランダムで増やす」
+  function clearCajonScheduler(){
+    if (cajonEventId !== null){
+      try { Tone.Transport.clear(cajonEventId); } catch(e){}
+      cajonEventId = null;
+    }
+  }
+
+  function clearGamelanScheduler(){
+    if (gamelanEventId !== null){
+      try { Tone.Transport.clear(gamelanEventId); } catch(e){}
+      gamelanEventId = null;
+    }
+  }
+
   function harmonyGapSeconds(r){
     let g = randomBetween(0.9, 3.2);
 
@@ -687,7 +972,6 @@
     return f.transpose(12 * octShift).toNote();
   }
 
-  // ✅ 減衰前の重なり頻度を増やす（early overlap 多め）
   function pickOverlapMode(r){
     let base = 0.52;
     if (r.time === "day" || r.time === "morning") base = 0.60;
@@ -726,11 +1010,9 @@
       envelope: { attack: 2.2, decay: 0.6, sustain: 0.82, release: 18.0 }
     }).connect(chordGain);
 
-    // ✅ Harmony volumeは控えめ
     chordPad.volume.value = -18;
 
-    // ✅ peak上限を抑える
-    let peak = 0.15 + Math.random() * 0.17; // 0.15〜0.32
+    let peak = 0.15 + Math.random() * 0.17;
     if (r.time === "night" || r.time === "late") peak *= 0.78;
     if (r.weatherCat === "rain") peak *= 0.86;
 
@@ -747,16 +1029,13 @@
     const disposeAt = tEnd + 22.0;
     scheduleDispose(chordPad, chordGain, disposeAt);
 
-    // ✅ 次のハーモニー：通常/余韻重なり/減衰前重なり をランダムに
     const mode = pickOverlapMode(r);
     let nextTime = startTime + playDur + gapDur;
 
     if (mode === "tail"){
-      // 余韻の中で重なる（release中）
       nextTime = tEnd + randomBetween(-10.0, 6.0);
       nextTime = Math.max(nextTime, startTime + 7.0);
     } else if (mode === "early"){
-      // ✅ 減衰前に重なる（sustain域で重なる）
       const frac = randomBetween(0.30, 0.70);
       nextTime = startTime + playDur * frac;
     }
@@ -823,7 +1102,6 @@
     }
   }
 
-  // ✅ リズム音の「音価」をランダム化
   function randomRhythmDuration(r){
     const dayish = (r.time === "morning" || r.time === "day");
     const nightish = (r.time === "night" || r.time === "late");
@@ -842,7 +1120,6 @@
     return clamp(sec, 0.05, 0.60);
   }
 
-  // ✅ ヒット毎パン（ランダム）
   function applyHitPan(time, r){
     if (!sparkleHitPanner) return;
 
@@ -859,7 +1136,197 @@
   }
 
   // =========================
-  // Wind / Water random swells
+  // Cajon: random note-values + deep reverb only
+  // =========================
+  function cajonDensity(r){
+    let p = 0.22;
+    if (r.time === "morning") p = 0.26;
+    if (r.time === "day")     p = 0.28;
+    if (r.time === "evening") p = 0.24;
+    if (r.time === "night")   p = 0.18;
+    if (r.time === "late")    p = 0.14;
+    if (r.weatherCat === "rain") p *= 1.08;
+    return clamp(p, 0.06, 0.45);
+  }
+
+  function cajonDurPool(r){
+    const dayish = (r.time === "morning" || r.time === "day");
+    const nightish = (r.time === "night" || r.time === "late");
+
+    const short = ["16n","16t","32n"];
+    const mid   = ["8n","8t","12n","24n"];
+    const long  = ["4n","6n"];
+
+    let pool = [...short, ...mid];
+    if (dayish) pool = [...short, ...short, ...mid, "16n", "8n"];
+    if (nightish) pool = [...mid, ...mid, ...long, "8n"];
+    if (r.weatherCat === "rain") pool = [...pool, ...long];
+    return pool;
+  }
+
+  function cajonNextStepSeconds(r){
+    const d = choose(cajonDurPool(r));
+    let sec = Tone.Time(d).toSeconds();
+    sec *= randomBetween(0.92, 1.08);
+    return clamp(sec, 0.08, 1.25);
+  }
+
+  function cajonHit(time, r){
+    if (!cajonBody || !cajonSnap) return;
+
+    const roll = Math.random();
+    const isNight = (r.time === "night" || r.time === "late");
+
+    let v = 0.30 + Math.random()*0.22;
+    if (isNight) v *= 0.82;
+    if (r.weatherCat === "rain") v *= 0.92;
+
+    const bodyNote = choose(["C1","D1","E1","G1"]);
+    if (roll < 0.55){
+      cajonBody.triggerAttackRelease(bodyNote, 0.06, time, v);
+    } else if (roll < 0.85){
+      cajonSnap.triggerAttackRelease(0.03, time, v*0.70);
+    } else {
+      cajonBody.triggerAttackRelease(bodyNote, 0.05, time, v*0.95);
+      cajonSnap.triggerAttackRelease(0.028, time + 0.004, v*0.60);
+    }
+
+    const ghostChance = isNight ? 0.10 : 0.16;
+    if (Math.random() < ghostChance){
+      const t2 = time + randomBetween(0.05, 0.14);
+      cajonSnap.triggerAttackRelease(0.02, t2, v*0.35);
+      if (!isNight && Math.random() < 0.35){
+        cajonBody.triggerAttackRelease(bodyNote, 0.045, t2 + 0.01, v*0.40);
+      }
+    }
+  }
+
+  function startCajonScheduler(startTime, r){
+    clearCajonScheduler();
+
+    const step = (t) => {
+      const rr = applyParams();
+      const p = cajonDensity(rr);
+      if (Math.random() < p){
+        cajonHit(t, rr);
+      }
+      const next = t + cajonNextStepSeconds(rr);
+      cajonEventId = Tone.Transport.scheduleOnce(step, next);
+    };
+
+    cajonEventId = Tone.Transport.scheduleOnce(step, startTime);
+  }
+
+  // =========================
+  // Gamelan (NEW)
+  // =========================
+  // ざっくり「スレンドロ/ペログ風」：等間隔っぽい・少しズレた周波数群（厳密再現ではなく雰囲気）
+  function gamelanScaleHz(r){
+    // 基音（季節キーに寄せた雰囲気）— 実音はHzで扱う
+    const baseMap = { C: 196.0, D: 220.0, Eb: 207.65, A: 220.0 }; // Aは同じでもOK
+    const base = baseMap[r.key] || 196.0;
+
+    const slendro = [1.00, 1.12, 1.26, 1.41, 1.58]; // 5音っぽい
+    const pelog   = [1.00, 1.07, 1.20, 1.34, 1.50, 1.67, 1.90]; // 7音っぽい（偏り）
+
+    const usePelog = (r.weatherCat === "rain") || (r.time === "evening");
+    const ratios = usePelog ? pelog : slendro;
+
+    // octave spread
+    const oct = (r.time === "late" || r.time === "night") ? choose([0, 0, 1]) : choose([0,1,1,2]);
+    const mul = Math.pow(2, oct);
+
+    // ほんの少し個体差（ガムランっぽいピッチの揺れ）
+    const jitter = () => (1 + randomBetween(-0.008, 0.008));
+
+    return ratios.map(x => base * x * mul * jitter());
+  }
+
+  function gamelanDensity(r){
+    // ガムランは“点描”にする（カフォンより少なめ）
+    let p = 0.12;
+    if (r.time === "morning") p = 0.13;
+    if (r.time === "day")     p = 0.14;
+    if (r.time === "evening") p = 0.12;
+    if (r.time === "night")   p = 0.09;
+    if (r.time === "late")    p = 0.07;
+    if (r.weatherCat === "rain") p *= 1.10;
+    return clamp(p, 0.03, 0.22);
+  }
+
+  function gamelanDurPool(r){
+    const nightish = (r.time === "night" || r.time === "late");
+    const short = ["16n","16t","32n"];
+    const mid   = ["8n","8t","12n","24n"];
+    const long  = ["4n","6n"];
+
+    let pool = [...short, ...mid];
+    if (nightish) pool = [...mid, ...mid, ...long, "8n"];
+    if (r.weatherCat === "rain") pool = [...pool, ...long];
+    return pool;
+  }
+
+  function gamelanNextStepSeconds(r){
+    const d = choose(gamelanDurPool(r));
+    let sec = Tone.Time(d).toSeconds();
+    // ちょいゆらぎ
+    sec *= randomBetween(0.90, 1.10);
+    // 詰まりすぎない
+    return clamp(sec, 0.10, 1.60);
+  }
+
+  function gamelanHit(time, r){
+    if (!gamelan) return;
+
+    const scale = gamelanScaleHz(r);
+    const hz = choose(scale);
+
+    // ベロシティ（夜は控えめ）
+    const isNight = (r.time === "night" || r.time === "late");
+    let v = 0.14 + Math.random()*0.10;
+    if (isNight) v *= 0.78;
+    if (r.weatherCat === "rain") v *= 0.90;
+
+    // 打ち方：単発 / 2連 / 3連をちょい混ぜ
+    const roll = Math.random();
+
+    // まず周波数をセット（MetalSynthはfrequencyを読む）
+    gamelan.frequency = hz;
+
+    if (roll < 0.70){
+      gamelan.triggerAttackRelease("16n", time, v);
+    } else if (roll < 0.90){
+      gamelan.triggerAttackRelease("16n", time, v);
+      gamelan.frequency = hz * choose([1.00, 1.12, 0.89]);
+      gamelan.triggerAttackRelease("32n", time + randomBetween(0.06, 0.12), v*0.70);
+    } else {
+      // 小さめの3連（点描のきらめき）
+      const gaps = [0.06, 0.10, 0.14].map(x => x + randomBetween(-0.01, 0.01));
+      for (let i=0; i<3; i++){
+        gamelan.frequency = hz * choose([1.00, 1.12, 1.26, 0.89]);
+        gamelan.triggerAttackRelease("32n", time + gaps[i], v*(0.62 - i*0.10));
+      }
+    }
+  }
+
+  function startGamelanScheduler(startTime, r){
+    clearGamelanScheduler();
+
+    const step = (t) => {
+      const rr = applyParams();
+      const p = gamelanDensity(rr);
+      if (Math.random() < p){
+        gamelanHit(t, rr);
+      }
+      const next = t + gamelanNextStepSeconds(rr);
+      gamelanEventId = Tone.Transport.scheduleOnce(step, next);
+    };
+
+    gamelanEventId = Tone.Transport.scheduleOnce(step, startTime);
+  }
+
+  // =========================
+  // Wind / Water swells
   // =========================
   function windBaseLevel(r){
     const w = clamp(lastWeather.wind ?? 0, 0, 15);
@@ -867,7 +1334,12 @@
     if (r.time === "night") base *= 0.78;
     if (r.time === "late") base *= 0.65;
     if (r.weatherCat === "rain") base *= 0.90;
-    return clamp(base, 0.00002, 0.00020);
+
+    const f = uiFreqFactor("wind", r);
+    const gainMul = clamp(0.35 + 1.10 * f, 0.20, 1.60);
+    base *= gainMul;
+
+    return clamp(base, 0.00001, 0.00028);
   }
 
   function waterBaseLevel(r){
@@ -875,13 +1347,20 @@
     if (r.weatherCat === "rain") base = 0.00008;
     if (r.time === "night") base *= 0.85;
     if (r.time === "late") base *= 0.70;
-    return clamp(base, 0.00002, 0.00014);
+
+    const f = uiFreqFactor("water", r);
+    const gainMul = clamp(0.35 + 1.10 * f, 0.20, 1.60);
+    base *= gainMul;
+
+    return clamp(base, 0.00001, 0.00020);
   }
 
   function triggerWindGust(time, r){
     if (!windGain) return;
     const base = windBaseLevel(r);
-    const peak = clamp(base * randomBetween(2.0, 4.8), 0.00006, 0.00065);
+
+    const ff = uiFreqFactor("wind", r);
+    const peak = clamp(base * randomBetween(1.8, 4.6) * (0.70 + 0.90*ff), 0.00003, 0.00085);
     const dur = randomBetween(2.4, 6.8);
 
     windGain.gain.cancelScheduledValues(time);
@@ -893,7 +1372,9 @@
   function triggerWaterRipple(time, r){
     if (!waterGain) return;
     const base = waterBaseLevel(r);
-    const peak = clamp(base * randomBetween(1.6, 3.2), 0.00005, 0.00055);
+
+    const ff = uiFreqFactor("water", r);
+    const peak = clamp(base * randomBetween(1.6, 3.2) * (0.75 + 0.90*ff), 0.00003, 0.00070);
     const dur = randomBetween(1.4, 4.6);
 
     waterGain.gain.cancelScheduledValues(time);
@@ -902,6 +1383,9 @@
     waterGain.gain.exponentialRampToValueAtTime(Math.max(0.000001, base), time + dur);
   }
 
+  // =========================
+  // Loops
+  // =========================
   function rebuildLoops(){
     disposeAllChords();
     Tone.Transport.cancel(0);
@@ -911,27 +1395,29 @@
     if (windLoop) { windLoop.dispose(); windLoop = null; }
     if (waterLoop) { waterLoop.dispose(); waterLoop = null; }
     clearHarmonyScheduler();
+    clearCajonScheduler();
+    clearGamelanScheduler();
 
     const r = applyParams();
 
-    // set wind/water baseline immediately
     const now = Tone.now();
     if (windGain) windGain.gain.setValueAtTime(Math.max(0.000001, windBaseLevel(r)), now);
     if (waterGain) waterGain.gain.setValueAtTime(Math.max(0.000001, waterBaseLevel(r)), now);
 
-    // harmony
     const startAt = Tone.Transport.seconds + 0.1;
+
     chordEventId = Tone.Transport.scheduleOnce((t) => playOneHarmony(t, r), startAt);
 
-    // rhythm delay structure
+    startCajonScheduler(startAt + 0.2, r);
+    startGamelanScheduler(startAt + 0.25, r);
+
     rebuildSparkleDelayIfNeeded(r);
 
-    // Rhythm (sparkle)
     const sparkleInterval = 0.52;
     sparkleLoop = new Tone.Loop((time) => {
       rebuildSparkleDelayIfNeeded(r);
 
-      const scale = sparkleScale(r.key, r.weatherCat, r.time);
+      const pack = sparkleScaleWithLow(r.key, r.weatherCat, r.time);
 
       let p = 0.60;
       if (r.weatherCat === "rain") p = 0.50;
@@ -952,23 +1438,28 @@
       if (Math.random() < p){
         applyHitPan(time, r);
 
-        const note = scale[Math.floor(Math.random() * scale.length)];
+        const note = pickRhythmNote(pack, r);
         const durSec = randomRhythmDuration(r);
-        const amp = 0.40 + Math.random() * 0.12;
+
+        const isLowish = Tone.Frequency(note).toMidi() < Tone.Frequency(pack.hi[0]).toMidi();
+        let amp = 0.40 + Math.random() * 0.12;
+        if (isLowish) amp *= 0.78;
 
         if (Math.random() < 0.16){
-          const note2 = scale[Math.floor(Math.random() * scale.length)];
+          const note2 = pickRhythmNote(pack, r);
           const dur2 = clamp(durSec * randomBetween(0.75, 1.15), 0.05, 0.55);
+          const isLow2 = Tone.Frequency(note2).toMidi() < Tone.Frequency(pack.hi[0]).toMidi();
+          const amp2 = isLow2 ? amp*0.78 : amp*0.82;
+
           sparkle.triggerAttackRelease(note,  durSec, time,        amp);
-          sparkle.triggerAttackRelease(note2, dur2,  time + 0.02,  amp * 0.82);
+          sparkle.triggerAttackRelease(note2, dur2,  time + 0.02,  amp2);
         } else {
           sparkle.triggerAttackRelease(note, durSec, time, amp);
         }
       }
     }, sparkleInterval).start(0);
 
-    // Bird (more)
-    function birdChance(){
+    function autoBirdChance(r){
       let base = 0.08;
       if (r.time === "morning") base = 0.18;
       if (r.time === "day")     base = 0.26;
@@ -987,8 +1478,16 @@
         const u = clamp(uv / 11, 0, 1);
         base *= (1.0 + 0.12 * u);
       }
-
       return clamp(base, 0.010, 0.40);
+    }
+
+    function birdChance(r){
+      const auto = autoBirdChance(r);
+      const f = uiFreqFactor("bird", r);
+      const mul = (modeOf("birdMode") === "manual")
+        ? clamp(0.0 + 1.7 * f, 0.0, 1.7)
+        : 1.0;
+      return clamp(auto * mul, 0.0, 0.55);
     }
 
     function chirp(time, amp = 0.30){
@@ -1014,7 +1513,7 @@
       }
     }
 
-    function birdLoopIntervalSeconds(){
+    function birdLoopIntervalSeconds(r){
       if (r.time === "day") return 1.55;
       if (r.time === "morning") return 1.70;
       if (r.time === "evening") return 2.05;
@@ -1025,7 +1524,7 @@
     birdLoop = new Tone.Loop((time) => {
       if (!bird) return;
 
-      const p = birdChance();
+      const p = birdChance(r);
       if (Math.random() < p){
         if (r.time === "night" || r.time === "late"){
           chirp(time, 0.23);
@@ -1048,29 +1547,34 @@
           phrase(time);
         }
       }
-    }, birdLoopIntervalSeconds()).start(0);
+    }, birdLoopIntervalSeconds(r)).start(0);
 
-    // Wind random gusts
-    function windLoopInterval(){
+    function windLoopInterval(r){
       if (r.time === "day") return 3.2;
       if (r.time === "morning") return 3.6;
       if (r.time === "evening") return 4.0;
       if (r.time === "night") return 5.0;
       return 6.2;
     }
+
     windLoop = new Tone.Loop((time) => {
+      const ff = uiFreqFactor("wind", r);
       const w = clamp(lastWeather.wind ?? 0, 0, 15);
-      let p = 0.20 + 0.35 * (w / 15);
-      if (r.time === "late") p *= 0.70;
-      if (r.weatherCat === "rain") p *= 0.90;
-      p = clamp(p, 0.08, 0.72);
+      let pAuto = 0.20 + 0.35 * (w / 15);
+      if (r.time === "late") pAuto *= 0.70;
+      if (r.weatherCat === "rain") pAuto *= 0.90;
+      pAuto = clamp(pAuto, 0.06, 0.72);
+
+      const p = (modeOf("windMode") === "manual")
+        ? clamp(0.02 + 0.95 * ff, 0.02, 0.95)
+        : pAuto;
+
       if (Math.random() < p){
         triggerWindGust(time, r);
       }
-    }, windLoopInterval()).start(0);
+    }, windLoopInterval(r)).start(0);
 
-    // Water random ripples
-    function waterLoopInterval(){
+    function waterLoopInterval(r){
       if (r.weatherCat === "rain") return 3.0;
       if (r.time === "day") return 4.2;
       if (r.time === "morning") return 4.6;
@@ -1078,15 +1582,23 @@
       if (r.time === "night") return 6.2;
       return 7.2;
     }
+
     waterLoop = new Tone.Loop((time) => {
-      let p = (r.weatherCat === "rain") ? 0.44 : 0.26;
-      if (r.time === "late") p *= 0.75;
-      if (r.time === "night") p *= 0.85;
-      p = clamp(p, 0.10, 0.60);
+      const ff = uiFreqFactor("water", r);
+
+      let pAuto = (r.weatherCat === "rain") ? 0.44 : 0.26;
+      if (r.time === "late") pAuto *= 0.75;
+      if (r.time === "night") pAuto *= 0.85;
+      pAuto = clamp(pAuto, 0.08, 0.60);
+
+      const p = (modeOf("waterMode") === "manual")
+        ? clamp(0.02 + 0.95 * ff, 0.02, 0.95)
+        : pAuto;
+
       if (Math.random() < p){
         triggerWaterRipple(time, r);
       }
-    }, waterLoopInterval()).start(0);
+    }, waterLoopInterval(r)).start(0);
   }
 
   function setButtonState(){
@@ -1137,6 +1649,9 @@
     Tone.Destination.mute = true;
 
     clearHarmonyScheduler();
+    clearCajonScheduler();
+    clearGamelanScheduler();
+
     if (sparkleLoop) { sparkleLoop.stop(); sparkleLoop.dispose(); sparkleLoop = null; }
     if (birdLoop)    { birdLoop.stop(); birdLoop.dispose(); birdLoop = null; }
     if (windLoop)    { windLoop.stop(); windLoop.dispose(); windLoop = null; }
@@ -1147,7 +1662,6 @@
 
     disposeAllChords();
 
-    // rhythm multi tap cleanup
     if (sparkleMulti){
       sparkleMulti.tapNodes.forEach(n => { try{ n.dispose(); } catch(e){} });
       try{ sparkleMulti.input.dispose(); } catch(e){}
@@ -1155,11 +1669,12 @@
       sparkleMulti = null;
     }
 
-    // wind/water gains to near zero
     const now = Tone.now();
     try{
       if (windGain) windGain.gain.setValueAtTime(0.000001, now);
       if (waterGain) waterGain.gain.setValueAtTime(0.000001, now);
+      if (cajonGain) cajonGain.gain.setValueAtTime(Math.max(0.06, cajonGain.gain.value * 0.9), now);
+      if (gamelanGain) gamelanGain.gain.setValueAtTime(Math.max(0.03, gamelanGain.gain.value * 0.9), now);
     } catch(e){}
 
     setStatusChip(describeWeather(lastWeather.code));
@@ -1245,6 +1760,7 @@
     document.documentElement.classList.add("overflow-hidden");
     document.body.classList.add("overflow-hidden");
     setTab("tabSettings");
+    updateFreqLabels();
   }
 
   function closeSettings(){
@@ -1268,7 +1784,6 @@
     btn.addEventListener("click", () => setTab(btn.dataset.tab));
   });
 
-  // UI events
   document.getElementById("btnToggle").addEventListener("click", async () => {
     if (!isRunning) await start();
     else stop();
@@ -1281,6 +1796,23 @@
       applyParams();
       if (isRunning) rebuildLoops();
       applyParams();
+    });
+  });
+
+  ["birdMode","windMode","waterMode","birdFreq","windFreq","waterFreq"].forEach(id => {
+    document.getElementById(id).addEventListener("input", () => {
+      updateFreqLabels();
+      if (isRunning && lastComputedR){
+        const r = lastComputedR;
+        const now = Tone.now();
+        try{
+          if (windGain) windGain.gain.setValueAtTime(Math.max(0.000001, windBaseLevel(r)), now);
+          if (waterGain) waterGain.gain.setValueAtTime(Math.max(0.000001, waterBaseLevel(r)), now);
+        } catch(e){}
+      }
+    });
+    document.getElementById(id).addEventListener("change", () => {
+      updateFreqLabels();
     });
   });
 
