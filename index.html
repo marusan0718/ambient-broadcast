@@ -15,15 +15,18 @@
   <style>
     summary::-webkit-details-marker { display:none; }
     .ios-scroll { -webkit-overflow-scrolling: touch; }
+    .glass {
+      background: rgba(255,255,255,.72);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
   </style>
 </head>
 
 <body class="min-h-screen text-slate-900">
   <main class="min-h-screen flex items-center justify-center p-5 sm:p-8">
     <div class="w-full max-w-xl">
-      <!-- Card -->
-      <div class="rounded-[28px] border border-white/70 bg-white/70 backdrop-blur-xl shadow-[0_20px_60px_rgba(15,23,42,0.10)] overflow-hidden">
-        <!-- Header -->
+      <div class="rounded-[28px] border border-white/70 glass shadow-[0_20px_60px_rgba(15,23,42,0.10)] overflow-hidden">
         <div class="px-6 sm:px-8 pt-7 pb-5">
           <div class="flex items-start justify-between gap-3">
             <div>
@@ -31,25 +34,19 @@
                 <span id="dot" class="inline-block size-2 rounded-full bg-slate-400"></span>
                 <span id="modeText">Ready</span>
               </div>
+
               <h1 class="mt-3 text-2xl font-semibold tracking-tight">Ambient Music</h1>
 
-              <!-- 「いまこの」から段落分け -->
-              <p class="mt-1 text-sm text-slate-600">
-                季節、天気、風のゆらぎ。<br class="hidden sm:block">
-              </p>
-              <p class="mt-1 text-sm text-slate-600">
-                いまこの瞬間の自然と同期し、音楽を紡ぐ。
-              </p>
+              <p class="mt-1 text-sm text-slate-600">季節、天気、風のゆらぎ。</p>
+              <p class="mt-1 text-sm text-slate-600">いまこの瞬間の自然と同期し、音楽を紡ぐ。</p>
             </div>
 
             <div class="text-right">
-              <!-- 自動更新を小さく＆1行 -->
               <div class="text-[10px] sm:text-xs text-slate-500 whitespace-nowrap">自動更新</div>
               <div id="countdown" class="mt-1 text-sm font-medium text-slate-700 tabular-nums">—</div>
             </div>
           </div>
 
-          <!-- Big button -->
           <button id="btnToggle"
             class="mt-5 w-full rounded-3xl px-5 py-6 sm:py-7 transition active:scale-[0.99]
                    bg-slate-900 text-white hover:bg-slate-800
@@ -67,28 +64,24 @@
             </div>
           </button>
 
-          <!-- Minimal metrics -->
           <div class="mt-4 grid grid-cols-2 gap-3">
             <div class="rounded-2xl bg-white/75 border border-slate-200 p-4">
-              <div class="text-xs text-slate-500">天気</div>
+              <div class="flex items-center justify-between">
+                <div class="text-xs text-slate-500">天気</div>
+                <div class="text-[11px] text-slate-500">UV <span id="uvText" class="tabular-nums">—</span></div>
+              </div>
               <div id="weatherText" class="mt-1 text-base font-medium">—</div>
-              <!-- UVを小さく表示（UIをうるさくしない） -->
-              <div class="mt-2 text-[11px] text-slate-500">UV: <span id="uvText">—</span></div>
-
-              <!-- 非表示のまま保持（JS互換のため） -->
               <div class="hidden mt-2 text-[11px] text-slate-500">コード: <span id="weatherCode">—</span></div>
             </div>
+
             <div class="rounded-2xl bg-white/75 border border-slate-200 p-4">
               <div class="text-xs text-slate-500">風速</div>
               <div class="mt-1 text-base font-medium"><span id="windSpeed">—</span> m/s</div>
-
-              <!-- 非表示のまま保持（JS互換のため） -->
               <div class="hidden mt-2 text-[11px] text-slate-500">密度: <span id="density">—</span></div>
             </div>
           </div>
         </div>
 
-        <!-- Footer actions -->
         <div class="border-t border-white/70 bg-white/55">
           <div class="px-6 sm:px-8 py-4 flex items-center justify-between gap-3">
             <button id="btnRefresh"
@@ -116,67 +109,161 @@
     <div id="settingsBackdrop" class="absolute inset-0 bg-slate-900/10 backdrop-blur-[2px]"></div>
 
     <div class="absolute inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6">
-      <div
-        class="w-full max-w-[520px]
-               rounded-[28px] bg-white/95 border border-slate-200 shadow-2xl
-               overflow-hidden">
-        <div class="px-5 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-          <div class="text-sm font-semibold text-slate-800">設定</div>
-          <button id="btnCloseSettings"
-            class="px-3 py-1.5 rounded-xl text-sm bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.99]">
-            閉じる
-          </button>
+      <div class="w-full max-w-[560px] rounded-[28px] bg-white/95 border border-slate-200 shadow-2xl overflow-hidden">
+        <!-- header -->
+        <div class="px-5 sm:px-6 pt-4 pb-3 border-b border-slate-200">
+          <div class="flex items-center justify-between gap-3">
+            <div class="text-sm font-semibold text-slate-800">設定</div>
+            <button id="btnCloseSettings"
+              class="px-3 py-1.5 rounded-xl text-sm bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.99]">
+              閉じる
+            </button>
+          </div>
+
+          <!-- Tabs -->
+          <div class="mt-3 flex gap-2">
+            <button data-tab="tabSettings"
+              class="tabBtn flex-1 px-3 py-2 rounded-2xl text-sm border border-slate-200 bg-slate-900 text-white">
+              設定
+            </button>
+            <button data-tab="tabGuide"
+              class="tabBtn flex-1 px-3 py-2 rounded-2xl text-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50">
+              仕組み
+            </button>
+          </div>
         </div>
 
+        <!-- body -->
         <div class="px-5 sm:px-6 py-4 max-h-[70vh] overflow-y-auto ios-scroll">
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <div class="text-xs text-slate-500 mb-1">季節</div>
-              <select id="seasonSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
-                <option value="auto">Auto</option>
-                <option value="spring">春</option>
-                <option value="summer">夏</option>
-                <option value="autumn">秋</option>
-                <option value="winter">冬</option>
-              </select>
+          <!-- ===== Tab: Settings ===== -->
+          <section id="tabSettings">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <div class="text-xs text-slate-500 mb-1">季節</div>
+                <select id="seasonSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                  <option value="auto">Auto</option>
+                  <option value="spring">春</option>
+                  <option value="summer">夏</option>
+                  <option value="autumn">秋</option>
+                  <option value="winter">冬</option>
+                </select>
+              </div>
+              <div>
+                <div class="text-xs text-slate-500 mb-1">時間</div>
+                <select id="timeSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                  <option value="auto">Auto</option>
+                  <option value="morning">朝</option>
+                  <option value="day">昼</option>
+                  <option value="evening">夕</option>
+                  <option value="night">夜</option>
+                  <option value="late">深夜</option>
+                </select>
+              </div>
+              <div>
+                <div class="text-xs text-slate-500 mb-1">天気</div>
+                <select id="weatherSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+                  <option value="auto">Auto</option>
+                  <option value="clear">晴れ</option>
+                  <option value="rain">雨</option>
+                  <option value="other">その他</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <div class="text-xs text-slate-500 mb-1">時間</div>
-              <select id="timeSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
-                <option value="auto">Auto</option>
-                <option value="morning">朝</option>
-                <option value="day">昼</option>
-                <option value="evening">夕</option>
-                <option value="night">夜</option>
-                <option value="late">深夜</option>
-              </select>
-            </div>
-            <div>
-              <div class="text-xs text-slate-500 mb-1">天気</div>
-              <select id="weatherSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
-                <option value="auto">Auto</option>
-                <option value="clear">晴れ</option>
-                <option value="rain">雨</option>
-                <option value="other">その他</option>
-              </select>
-            </div>
-          </div>
 
-          <!-- 状態は設定内へ -->
-          <div class="mt-4">
-            <div class="text-xs text-slate-500 mb-1">状態</div>
-            <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-              <span id="status">待機中（Startで音が鳴る）</span>
+            <!-- ✅ 状態（シンプル + 状況が分かる2行） -->
+            <div class="mt-4">
+              <div class="text-xs text-slate-500 mb-1">状態</div>
+              <div class="rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                <div id="statusMain" class="text-sm font-medium text-slate-800">待機中</div>
+                <div id="statusSub" class="mt-0.5 text-[12px] text-slate-600">—</div>
+              </div>
             </div>
-          </div>
+          </section>
 
-          <div class="mt-4 text-[11px] text-slate-500">
-            ロック画面表示：再生開始後にOS側へ情報を渡します（完全保証ではないよ）
-          </div>
-        </div>
+          <!-- ===== Tab: Guide ===== -->
+          <section id="tabGuide" class="hidden">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="text-sm font-semibold text-slate-800">このアプリの仕組み</div>
+              <p class="mt-2 text-sm text-slate-700 leading-relaxed">
+                自然の値をそのまま音量に結びつけるのではなく、心地よさのバランスを守りながら、キーやテンポ、光の明るさ、きらめきの密度へとそっと織り込んでいます。
+              </p>
+            </div>
 
-        <div class="px-5 sm:px-6 py-3 border-t border-slate-200 text-[11px] text-slate-500">
-          ヒント：外側をタップ / Esc で閉じる
+            <div class="mt-3 space-y-3">
+              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+                <summary class="cursor-pointer select-none flex items-center justify-between">
+                  <span class="text-sm font-medium text-slate-800">季節（キー：調）</span>
+                  <span class="text-slate-400">▾</span>
+                </summary>
+                <div class="mt-3 text-sm text-slate-700 leading-relaxed">
+                  春はC、夏はD、秋はEb、冬はA。<br>
+                  季節ごとにそっと基調となるキーを定めています。ハーモニーときらめきは常に同じ調の中で揺らぐため、音の世界が崩れることはありません。
+                </div>
+              </details>
+
+              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+                <summary class="cursor-pointer select-none flex items-center justify-between">
+                  <span class="text-sm font-medium text-slate-800">時間（テンポ・空気感）</span>
+                  <span class="text-slate-400">▾</span>
+                </summary>
+                <div class="mt-3 text-sm text-slate-700 leading-relaxed">
+                  朝と昼は、わずかに速く。夜と深夜は、ゆっくりと。体感の“呼吸”を時間帯に寄せながら、背景の白も静かに移ろいます。
+                </div>
+              </details>
+
+              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+                <summary class="cursor-pointer select-none flex items-center justify-between">
+                  <span class="text-sm font-medium text-slate-800">天気（明るさ・残響）</span>
+                  <span class="text-slate-400">▾</span>
+                </summary>
+                <div class="mt-3 text-sm text-slate-700 leading-relaxed">
+                  晴れの日は、光をひらくように明るく。余韻は軽やかに整え、空気を澄ませます。雨の日は、少しだけ陰影を深めて。残響を重ね、しっとりとした余白をまとわせています。
+                </div>
+              </details>
+
+              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+                <summary class="cursor-pointer select-none flex items-center justify-between">
+                  <span class="text-sm font-medium text-slate-800">風（ゆらぎ：きらめき密度）</span>
+                  <span class="text-slate-400">▾</span>
+                </summary>
+                <div class="mt-3 text-sm text-slate-700 leading-relaxed">
+                  風が強まるほど、きらめきはわずかに増えていきます。<br>
+                  けれど決して騒がしくはならないように。瞬きが少しだけ増える、そのくらいの余白にとどめています。
+                </div>
+              </details>
+
+              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+                <summary class="cursor-pointer select-none flex items-center justify-between">
+                  <span class="text-sm font-medium text-slate-800">UV（昼の光：明るさ補正）</span>
+                  <span class="text-slate-400">▾</span>
+                </summary>
+                <div class="mt-3 text-sm text-slate-700 leading-relaxed">
+                  光が強い日中は、空気の透明度を少し高め、余韻を引き締めます。<br>
+                  きらりと差し込む光の感触を添えて、昼の心地よさをそっと押し上げます。
+                </div>
+              </details>
+
+              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+                <summary class="cursor-pointer select-none flex items-center justify-between">
+                  <span class="text-sm font-medium text-slate-800">鳥（囀り）</span>
+                  <span class="text-slate-400">▾</span>
+                </summary>
+                <div class="mt-3 text-sm text-slate-700 leading-relaxed">
+                  朝から昼にかけては、景色の“気配”として囀りをほんの少しだけ添えています。主役にならないよう、短いフレーズと単発を織り交ぜながら、空気に自然と溶け込む範囲にとどめています。夜と深夜は、その静けさを何よりも優先します。
+                </div>
+              </details>
+
+              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+                <summary class="cursor-pointer select-none flex items-center justify-between">
+                  <span class="text-sm font-medium text-slate-800">ハーモニー</span>
+                  <span class="text-slate-400">▾</span>
+                </summary>
+                <div class="mt-3 text-sm text-slate-700 leading-relaxed">
+                  響きは、その調の中でも穏やかな三和音だけを選び、不安定さを生む和音はあえて用いません。安心して身を預けられる響きを紡いでいます。
+                </div>
+              </details>
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -184,7 +271,7 @@
 
 <script>
   // =========================
-  // Weather (Open-Meteo)
+  // Weather + UV (Open-Meteo)
   // =========================
   const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
   const AUTO_UPDATE_MS = 5 * 60 * 1000;
@@ -213,13 +300,8 @@
     const url = new URL(OPEN_METEO_URL);
     url.searchParams.set("latitude", lat);
     url.searchParams.set("longitude", lon);
-
-    // current: weather + wind
     url.searchParams.set("current", "weather_code,wind_speed_10m");
-
-    // daily: UV index (daily max)
     url.searchParams.set("daily", "uv_index_max");
-    url.searchParams.set("forecast_days", "1");
     url.searchParams.set("timezone", "auto");
 
     const res = await fetch(url.toString());
@@ -228,12 +310,11 @@
 
     const code = data?.current?.weather_code;
     const wind = data?.current?.wind_speed_10m;
-
-    // uv_index_max は daily に入る（1日分）
-    const uv = Array.isArray(data?.daily?.uv_index_max) ? data.daily.uv_index_max[0] : null;
+    const uvArr = data?.daily?.uv_index_max;
+    const uv = Array.isArray(uvArr) ? uvArr[0] : null;
 
     if (typeof code !== "number" || typeof wind !== "number") throw new Error("天気データ形式が想定と違います");
-    return { code, wind, uv: (typeof uv === "number" ? uv : 0) };
+    return { code, wind, uv: (typeof uv === "number" ? uv : null) };
   }
 
   function getCurrentPosition() {
@@ -268,7 +349,15 @@
   }
 
   function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
-  function setStatus(msg) { document.getElementById("status").textContent = msg; }
+
+  // ✅ 状態を「短いけど分かる」にする（メイン + サブ）
+  function setStatus(main, sub = "—") {
+    const a = document.getElementById("statusMain");
+    const b = document.getElementById("statusSub");
+    if (!a || !b) return;
+    a.textContent = main;
+    b.textContent = sub;
+  }
 
   function applyWhiteByTime(time){
     const map = {
@@ -280,25 +369,6 @@
     };
     const [a,b,c] = map[time] || map.day;
     document.body.className = `min-h-screen text-slate-900 bg-gradient-to-b ${a} ${b} ${c}`;
-  }
-
-  // 風 → “きらめき密度”の内部計算用（UIは非表示）
-  function windToIntervalSeconds(wind){
-    const w = clamp(wind, 0, 15);
-    const t = 1.2 - (w/15)*1.02;
-    return clamp(t, 0.18, 1.2);
-  }
-
-  function getEnv(lastWeather){
-    const seasonSel = document.getElementById("seasonSel").value;
-    const timeSel   = document.getElementById("timeSel").value;
-    const weatherSel= document.getElementById("weatherSel").value;
-
-    const season = (seasonSel === "auto") ? autoSeason() : seasonSel;
-    const time   = (timeSel === "auto") ? autoTimeBlock() : timeSel;
-    const weatherCat = (weatherSel === "auto") ? weatherCategoryFromCode(lastWeather.code) : weatherSel;
-
-    return { season, time, weatherCat };
   }
 
   // =========================
@@ -337,8 +407,8 @@
   let sparkleLoop, birdLoop;
   let chordEventId = null;
 
-  let lastWeather = { code: 0, wind: 0, uv: 0 };
-  let lastHarmonyDegree = null;
+  let lastWeather = { code: 0, wind: 0, uv: null };
+  let lastRoot = null;
 
   const HARM_PLAY_MIN = 26.0;
   const HARM_PLAY_MAX = 52.0;
@@ -379,7 +449,21 @@
     return "C";
   }
 
-  // きらめき用スケール（前と同じ）
+  function chordChoicesForKey(key){
+    const map = {
+      "C":  ["C4","D4","E4","F4","G4","A4"],
+      "D":  ["D4","E4","F#4","G4","A4","B4"],
+      "Eb": ["Eb4","F4","G4","Ab4","Bb4","C5"],
+      "A":  ["A3","B3","C#4","D4","E4","F#4"]
+    };
+    return map[key] || map["C"];
+  }
+
+  function triad(rootNote){
+    const r = Tone.Frequency(rootNote);
+    return [ r.toNote(), r.transpose(4).toNote(), r.transpose(7).toNote() ];
+  }
+
   function sparkleScale(key, weatherCat, time){
     const major = {
       "C":  ["C5","D5","E5","F5","G5","A5","B5","C6"],
@@ -399,60 +483,39 @@
 
   function randomBetween(min, max){ return min + Math.random() * (max - min); }
 
-  // =========================
-  // Harmony (dissonance-safe)
-  // =========================
-  function harmonyScaleForKey(key){
-    // 7音 + オクターブ（i..vii + i）
-    const map = {
-      "C":  ["C4","D4","E4","F4","G4","A4","B4","C5"],
-      "D":  ["D4","E4","F#4","G4","A4","B4","C#5","D5"],
-      "Eb": ["Eb4","F4","G4","Ab4","Bb4","C5","D5","Eb5"],
-      "A":  ["A3","B3","C#4","D4","E4","F#4","G#4","A4"],
-    };
-    return map[key] || map["C"];
+  function getEnv(){
+    const seasonSel = document.getElementById("seasonSel").value;
+    const timeSel   = document.getElementById("timeSel").value;
+    const weatherSel= document.getElementById("weatherSel").value;
+
+    const season = (seasonSel === "auto") ? autoSeason() : seasonSel;
+    const time   = (timeSel === "auto") ? autoTimeBlock() : timeSel;
+    const weatherCat = (weatherSel === "auto") ? weatherCategoryFromCode(lastWeather.code) : weatherSel;
+
+    return { season, time, weatherCat };
   }
 
-  function upOct(note, oct=1){
-    return Tone.Frequency(note).transpose(12 * oct).toNote();
+  function prettyTimeLabel(t){
+    if (t === "morning") return "朝";
+    if (t === "day") return "昼";
+    if (t === "evening") return "夕";
+    if (t === "night") return "夜";
+    if (t === "late") return "深夜";
+    return t;
   }
-
-  function diatonicTriad(scale, deg){
-    // deg: 0..6 (7音スケール)
-    const root = scale[deg];
-    const third = (deg + 2 <= 7) ? scale[deg + 2] : upOct(scale[(deg + 2) % 7], 1);
-    const fifth = (deg + 4 <= 7) ? scale[deg + 4] : upOct(scale[(deg + 4) % 7], 1);
-    return [root, third, fifth];
-  }
-
-  function pickHarmonyDegree(){
-    // vii°（6）を避ける。定番進行寄りに重み付け
-    // I(0), IV(3), V(4), vi(5), ii(1), iii(2)
-    const pool = [0,0,0, 3,3, 4,4,4, 5,5, 1, 2];
-    let d = pool[Math.floor(Math.random() * pool.length)];
-    // 連続同じを避ける
-    if (d === lastHarmonyDegree) d = pool[Math.floor(Math.random() * pool.length)];
-    lastHarmonyDegree = d;
-    return d;
-  }
-
-  // =========================
-  // Params (wind + UV)
-  // =========================
-  function uvToBrightnessFactor(uv, time){
-    // “日中だけ”効かせる。UV 0..11+ を 0.0..1.0へ
-    const dayLike = (time === "morning" || time === "day");
-    if (!dayLike) return 0;
-    return clamp(uv / 11, 0, 1);
+  function prettyWeatherLabel(w){
+    if (w === "clear") return "晴れ";
+    if (w === "rain") return "雨";
+    if (w === "other") return "その他";
+    return w;
   }
 
   function applyParams(){
-    const env = getEnv(lastWeather);
+    const env = getEnv();
     const key = keyFromSeason(env.season);
 
     applyWhiteByTime(env.time);
 
-    // tempo（前と同じ）
     let bpm = 66;
     if (env.time === "morning") bpm = 74;
     if (env.time === "day") bpm = 78;
@@ -461,16 +524,18 @@
     if (env.time === "late") bpm = 54;
     Tone.Transport.bpm.value = bpm;
 
-    // weather → 音の曇り具合（前と同じ）
     let cutoff = 1800, wet = 0.30;
     if (env.weatherCat === "clear") { cutoff = 2600; wet = 0.20; }
     if (env.weatherCat === "other") { cutoff = 1800; wet = 0.32; }
     if (env.weatherCat === "rain")  { cutoff = 1300; wet = 0.44; }
 
-    // UV（日中のみ）で“明るさ”を少し足す（やりすぎない）
-    const uvBright = uvToBrightnessFactor(lastWeather.uv, env.time);
-    cutoff = cutoff + uvBright * 520;          // 少しだけ上げる
-    wet    = wet   - uvBright * 0.06;          // 少しだけ乾かす
+    const uv = (typeof lastWeather.uv === "number") ? lastWeather.uv : null;
+    const isDay = (env.time === "day" || env.time === "morning" || env.time === "evening");
+    if (uv !== null && isDay){
+      const u = clamp(uv / 11, 0, 1);
+      cutoff += 520 * u;
+      wet    -= 0.06 * u;
+    }
 
     filter.frequency.value = clamp(cutoff, 900, 3400);
     reverb.wet.value = clamp(wet, 0.18, 0.60);
@@ -480,11 +545,13 @@
     }
 
     const windText = `${lastWeather.wind.toFixed(1)} m/s`;
-    const uvText   = `${Math.round(lastWeather.uv * 10)/10}`;
+    const uvText = (uv === null) ? "—" : uv.toFixed(1);
     setMediaSessionMetadata(`${env.season} / ${env.weatherCat} / wind ${windText} / UV ${uvText}`);
 
-    setStatus(`再生中：${env.season}/${env.time}/${env.weatherCat}（Key:${key} / UV:${uvText}）`);
-    return { ...env, key, uvBright };
+    // ✅ 状態をシンプルに：メイン=再生中/待機/停止/取得中…、サブ=Key・時間・天気・風・UV
+    const sub = `Key ${key} · ${prettyTimeLabel(env.time)} · ${prettyWeatherLabel(env.weatherCat)} · 風 ${lastWeather.wind.toFixed(1)} · UV ${uvText}`;
+    if (isRunning) setStatus("再生中", sub);
+    return { ...env, key, bpm };
   }
 
   function clearHarmonyScheduler(){
@@ -495,13 +562,14 @@
   }
 
   function playOneHarmony(startTime, r){
-    // 不協和音を避ける：ダイアトニック三和音のみ + vii°回避
-    const scale = harmonyScaleForKey(r.key);
-    const deg = pickHarmonyDegree();
-    const chord = diatonicTriad(scale, deg);
+    const choices = chordChoicesForKey(r.key);
 
-    const playDur = randomBetween(HARM_PLAY_MIN, HARM_PLAY_MAX);
-    const gapDur  = randomBetween(GAP_MIN, GAP_MAX);
+    let root = choices[Math.floor(Math.random() * choices.length)];
+    if (root === lastRoot) root = choices[Math.floor(Math.random() * choices.length)];
+    lastRoot = root;
+
+    const playDur = randomBetween(26.0, 52.0);
+    const gapDur  = randomBetween(3.0, 8.0);
 
     const chordGain = new Tone.Gain(0.000001).connect(filter);
     const chordPad = new Tone.PolySynth(Tone.Synth, {
@@ -510,26 +578,20 @@
     }).connect(chordGain);
     chordPad.volume.value = -15;
 
-    // ピークも“優しめ”
-    let peak = 0.20 + Math.random() * 0.26;
+    let peak = 0.22 + Math.random() * 0.30;
     if (r.time === "night" || r.time === "late") peak *= 0.75;
     if (r.weatherCat === "rain") peak *= 0.85;
 
-    // UVが高い日中はちょい明るめ（音量ではなく包み方で）
-    peak *= (1.0 + r.uvBright * 0.12);
-
-    const upPortion = 0.35 + Math.random() * 0.35;
     const t0 = startTime;
-    const tPeak = startTime + playDur * upPortion;
+    const tPeak = startTime + playDur * (0.35 + Math.random() * 0.35);
     const tEnd = startTime + playDur;
 
     chordGain.gain.setValueAtTime(0.00012, t0);
     chordGain.gain.exponentialRampToValueAtTime(Math.max(0.00025, peak), tPeak);
     chordGain.gain.exponentialRampToValueAtTime(0.00012, tEnd);
 
-    chordPad.triggerAttackRelease(chord, playDur, startTime, 0.72);
+    chordPad.triggerAttackRelease(triad(root), playDur, startTime, 0.72);
 
-    // 後片付け
     const disposeAt = tEnd + 22.0;
     Tone.Transport.scheduleOnce(() => { chordPad.dispose(); chordGain.dispose(); }, disposeAt);
 
@@ -540,7 +602,6 @@
     }, nextTime);
   }
 
-  // ディレイ時間（前と同じ）
   function pickFineDelayTimeSeconds(r){
     const night = (r.time === "night" || r.time === "late");
     const rain  = (r.weatherCat === "rain");
@@ -554,7 +615,6 @@
   }
 
   function rebuildLoops(){
-    // Stop/再構築で残スケジュールが鳴らないように根こそぎ
     Tone.Transport.cancel(0);
 
     if (sparkleLoop) { sparkleLoop.dispose(); sparkleLoop = null; }
@@ -565,7 +625,6 @@
     const startAt = Tone.Transport.seconds + 0.1;
     chordEventId = Tone.Transport.scheduleOnce((t) => playOneHarmony(t, r), startAt);
 
-    // sparkle（前の雰囲気維持 + 風/UVで少しだけ揺らぐ）
     const sparkleInterval = 0.58;
     sparkleLoop = new Tone.Loop((time) => {
       const scale = sparkleScale(r.key, r.weatherCat, r.time);
@@ -576,12 +635,16 @@
       if (r.time === "night") p = Math.min(p, 0.40);
       if (r.weatherCat === "clear" && (r.time === "day" || r.time === "morning")) p = 0.64;
 
-      // 風が強いほど“密度ちょい増し”
       const windBoost = clamp((lastWeather.wind - 2) / 10, 0, 0.12);
-      p = clamp(p + windBoost, 0.18, 0.78);
+      p += windBoost;
 
-      // UVが高い日中は“きらめき”ちょい増し（やりすぎない）
-      p = clamp(p + (r.uvBright * 0.10), 0.18, 0.82);
+      const uv = (typeof lastWeather.uv === "number") ? lastWeather.uv : null;
+      if (uv !== null && (r.time === "day" || r.time === "morning")){
+        const u = clamp(uv / 11, 0, 1);
+        p += 0.10 * u;
+      }
+
+      p = clamp(p, 0.12, 0.78);
 
       if (Math.random() < p){
         sparkleDelay.delayTime.setValueAtTime(pickFineDelayTimeSeconds(r), time);
@@ -602,46 +665,110 @@
       }
     }, sparkleInterval).start(0);
 
-    // birds（前と同じ）
+    // =========================
+    // 🐦 Bird (chirp) — Updated
+    // 目的：昼の頻度UP / 夜は静か / 単調さを避ける
+    // =========================
     function birdChance(){
-      let base = 0.05;
-      if (r.time === "morning") base = 0.12;
-      if (r.time === "day") base = 0.10;
-      if (r.time === "evening") base = 0.06;
-      if (r.time === "night") base = 0.02;
-      if (r.time === "late") base = 0.006;
-      if (r.weatherCat === "rain") base *= 0.55;
-      return base;
+      let base = 0.045;
+
+      // 時間帯（昼を増やす）
+      if (r.time === "morning") base = 0.11;
+      if (r.time === "day")     base = 0.18;  // ★昼をしっかり増やす
+      if (r.time === "evening") base = 0.08;
+      if (r.time === "night")   base = 0.018;
+      if (r.time === "late")    base = 0.006;
+
+      // 天気（雨は控えめ、晴れは少しだけ活発）
+      if (r.weatherCat === "rain")  base *= 0.55;
+      if (r.weatherCat === "clear" && (r.time === "day" || r.time === "morning")) base *= 1.12;
+
+      // 風（少しだけ：強風で鳥が増えすぎないよう上限はきつめ）
+      const w = clamp(lastWeather.wind ?? 0, 0, 15);
+      base *= (1.0 + 0.10 * (w / 15)); // 最大+10%
+
+      // UV（昼の賑わいにほんの少しだけ）
+      const uv = (typeof lastWeather.uv === "number") ? lastWeather.uv : null;
+      if (uv !== null && r.time === "day") {
+        const u = clamp(uv / 11, 0, 1);
+        base *= (1.0 + 0.10 * u); // 最大+10%
+      }
+
+      return clamp(base, 0.004, 0.25);
     }
 
-    function chirp(time){
+    function chirp(time, amp = 0.30){
       const base = 1450 + Math.random()*650;
-      const up = base + 900 + Math.random()*450;
-      const dur = 0.055 + Math.random()*0.06;
+      const up   = base + 900 + Math.random()*520;
+      const dur  = 0.055 + Math.random()*0.060;
 
       bird.frequency.setValueAtTime(base, time);
       bird.frequency.linearRampToValueAtTime(up, time + dur);
       bird.frequency.linearRampToValueAtTime(base + 220, time + dur + 0.03);
-      bird.triggerAttackRelease("C6", dur + 0.06, time, 0.30);
+
+      bird.triggerAttackRelease("C6", dur + 0.06, time, amp);
+    }
+
+    function phrase(time){
+      const n = (Math.random() < 0.55) ? 2 : (Math.random() < 0.80 ? 3 : 4);
+      const baseGap = 0.11 + Math.random()*0.10;
+
+      for (let i = 0; i < n; i++){
+        const t = time + i*(baseGap + Math.random()*0.06);
+        const amp = 0.26 + Math.random()*0.10;
+        chirp(t, amp);
+      }
+    }
+
+    function birdLoopIntervalSeconds(){
+      if (r.time === "day") return 1.9;
+      if (r.time === "morning") return 2.1;
+      if (r.time === "evening") return 2.4;
+      if (r.time === "night") return 3.2;
+      return 4.0; // late
     }
 
     birdLoop = new Tone.Loop((time) => {
       if (!bird) return;
-      if (Math.random() < birdChance()){
-        const n = (Math.random() < 0.38) ? 2 : 1;
-        for (let i=0; i<n; i++){
-          chirp(time + i*(0.12 + Math.random()*0.10));
+
+      const p = birdChance();
+      if (Math.random() < p){
+        // 夜/深夜は“単発中心”にして静けさを守る
+        if (r.time === "night" || r.time === "late"){
+          chirp(time, 0.24);
+          if (Math.random() < 0.12) chirp(time + 0.18 + Math.random()*0.10, 0.22);
+          return;
+        }
+
+        // 朝/昼：単発・2連・フレーズを混ぜる
+        const roll = Math.random();
+
+        if (roll < 0.52){
+          chirp(time, 0.28 + Math.random()*0.08);
+          if (Math.random() < (r.time === "day" ? 0.55 : 0.40)){
+            chirp(time + 0.14 + Math.random()*0.10, 0.24 + Math.random()*0.08);
+          }
+        } else if (roll < 0.82){
+          const n = (Math.random() < 0.65) ? 2 : 3;
+          for (let i=0; i<n; i++){
+            chirp(time + i*(0.12 + Math.random()*0.09), 0.24 + Math.random()*0.10);
+          }
+        } else {
+          if (r.time === "day" || Math.random() < 0.55) phrase(time);
+          else {
+            chirp(time, 0.28);
+            chirp(time + 0.16 + Math.random()*0.10, 0.24);
+          }
         }
       }
-    }, 2.4).start(0);
+    }, birdLoopIntervalSeconds()).start(0);
   }
 
   function updateUI({ code, wind, uv }){
     document.getElementById("weatherText").textContent = describeWeather(code);
     document.getElementById("weatherCode").textContent = String(code);
     document.getElementById("windSpeed").textContent = wind.toFixed(1);
-    document.getElementById("density").textContent = (1 / windToIntervalSeconds(wind)).toFixed(1) + " notes/sec";
-    document.getElementById("uvText").textContent = (typeof uv === "number") ? (Math.round(uv * 10)/10).toString() : "—";
+    document.getElementById("uvText").textContent = (typeof uv === "number") ? uv.toFixed(1) : "—";
   }
 
   function setButtonState(){
@@ -668,32 +795,24 @@
       label.textContent = "Start";
       sub.textContent = "タップで再生";
       iconSvg.innerHTML = '<path d="M8 5v14l11-7z"></path>';
-      setStatus("待機中（Startで音が鳴る）");
+      setStatus("待機中", "—");
     }
     updatePlaybackState();
   }
 
-  // ★Stopしても止まらない対策：開始時に必ずミュート解除
   async function start(){
     ensureAudioGraph();
-
-    // iOSの“消音スイッチ”は越えられないけど、
-    // WebAudio側のmuteは確実に解除しておく
     Tone.Destination.mute = false;
-
     await Tone.start();
     Tone.Transport.start();
     rebuildLoops();
-
     isRunning = true;
     setButtonState();
+    applyParams(); // 状態サブ更新
   }
 
-  // ★Stopしても止まらない対策：即ミュート + 全スケジュール削除
   function stop(){
     isRunning = false;
-
-    // 余韻ごと一瞬で無音にする
     Tone.Destination.mute = true;
 
     clearHarmonyScheduler();
@@ -701,15 +820,15 @@
     if (birdLoop)    { birdLoop.stop(); birdLoop.dispose(); birdLoop = null; }
 
     Tone.Transport.stop();
-    Tone.Transport.cancel(0); // 残ったscheduleOnceを根こそぎ
+    Tone.Transport.cancel(0);
 
-    setStatus("停止中（Startで再開）");
+    setStatus("停止中", "—");
     setButtonState();
   }
 
   async function refreshWeather(){
     try{
-      setStatus("天気取得中…");
+      setStatus("取得中…", "天気/風/UV");
       const pos = await getCurrentPosition();
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
@@ -723,13 +842,17 @@
       applyParams();
       if (isRunning){
         rebuildLoops();
-        setStatus("再生中（更新反映）");
+        applyParams();
       } else {
-        setStatus("取得OK（Startで音が鳴る）");
+        const env = getEnv();
+        const key = keyFromSeason(env.season);
+        const uvText = (typeof lastWeather.uv === "number") ? lastWeather.uv.toFixed(1) : "—";
+        const sub = `Key ${key} · ${prettyTimeLabel(env.time)} · ${prettyWeatherLabel(env.weatherCat)} · 風 ${lastWeather.wind.toFixed(1)} · UV ${uvText}`;
+        setStatus("待機中", sub);
       }
     } catch(e){
       console.error(e);
-      setStatus(`エラー: ${e.message}`);
+      setStatus("エラー", e.message);
     }
   }
 
@@ -743,18 +866,38 @@
   }
 
   // =========================
-  // Settings overlay control
+  // Settings overlay + Tabs
   // =========================
   const settingsDetails = document.getElementById("settingsDetails");
   const settingsOverlay = document.getElementById("settingsOverlay");
   const settingsBackdrop = document.getElementById("settingsBackdrop");
   const btnCloseSettings = document.getElementById("btnCloseSettings");
 
+  const tabButtons = Array.from(document.querySelectorAll(".tabBtn"));
+  const tabSettings = document.getElementById("tabSettings");
+  const tabGuide = document.getElementById("tabGuide");
+
+  function setTab(id){
+    const isSettings = (id === "tabSettings");
+    tabSettings.classList.toggle("hidden", !isSettings);
+    tabGuide.classList.toggle("hidden", isSettings);
+
+    tabButtons.forEach(btn => {
+      const active = btn.dataset.tab === id;
+      btn.className =
+        "tabBtn flex-1 px-3 py-2 rounded-2xl text-sm border border-slate-200 " +
+        (active
+          ? "bg-slate-900 text-white"
+          : "bg-white text-slate-700 hover:bg-slate-50");
+    });
+  }
+
   function openSettings(){
     settingsOverlay.classList.remove("hidden");
     settingsDetails.open = false;
     document.documentElement.classList.add("overflow-hidden");
     document.body.classList.add("overflow-hidden");
+    setTab("tabSettings");
   }
 
   function closeSettings(){
@@ -774,6 +917,10 @@
     if (e.key === "Escape") closeSettings();
   });
 
+  tabButtons.forEach(btn => {
+    btn.addEventListener("click", () => setTab(btn.dataset.tab));
+  });
+
   // UI events
   document.getElementById("btnToggle").addEventListener("click", async () => {
     if (!isRunning) await start();
@@ -785,6 +932,7 @@
     document.getElementById(id).addEventListener("change", () => {
       applyParams();
       if (isRunning) rebuildLoops();
+      applyParams();
     });
   });
 
