@@ -69,7 +69,7 @@
             <div class="rounded-2xl bg-white/75 border border-slate-200 px-4 py-3">
               <div class="flex items-center justify-between">
                 <div class="text-xs text-slate-500">状態</div>
-                <div id="statusChip" class="text-[11px] text-slate-500 tabular-nums">—</div>
+                <div id="statusChip" class="text-[11px] text-slate-500 tabular-nums"></div>
               </div>
               <div id="statusMain" class="mt-1 text-base font-medium text-slate-800">待機中</div>
               <div id="statusSub" class="mt-0.5 text-[12px] text-slate-600">—</div>
@@ -161,7 +161,7 @@
               </div>
             </div>
 
-            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div class="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-sky-50 p-5 shadow-sm">
               <div class="text-sm font-semibold text-slate-800">自然音の頻度（手動）</div>
               <p class="mt-1 text-xs text-slate-600">
                 Autoは「時間帯・天気」に合わせて自動。手動にすると、ここで頻度を上書きできます。
@@ -243,7 +243,7 @@
             </div>
 
             <div class="mt-3 space-y-3">
-              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+              <details class="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm">
                 <summary class="cursor-pointer select-none flex items-center justify-between">
                   <span class="text-sm font-medium text-slate-800">季節（キー・調）</span>
                   <span class="text-slate-400">▾</span>
@@ -254,7 +254,7 @@
                 </div>
               </details>
 
-              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+              <details class="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm">
                 <summary class="cursor-pointer select-none flex items-center justify-between">
                   <span class="text-sm font-medium text-slate-800">時間（テンポ・空気感）</span>
                   <span class="text-slate-400">▾</span>
@@ -264,7 +264,7 @@
                 </div>
               </details>
 
-              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+              <details class="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm">
                 <summary class="cursor-pointer select-none flex items-center justify-between">
                   <span class="text-sm font-medium text-slate-800">天気（明るさ・残響）</span>
                   <span class="text-slate-400">▾</span>
@@ -274,7 +274,7 @@
                 </div>
               </details>
 
-              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+              <details class="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm">
                 <summary class="cursor-pointer select-none flex items-center justify-between">
                   <span class="text-sm font-medium text-slate-800">風（ゆらぎ）</span>
                   <span class="text-slate-400">▾</span>
@@ -285,7 +285,7 @@
                 </div>
               </details>
 
-              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+              <details class="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm">
                 <summary class="cursor-pointer select-none flex items-center justify-between">
                   <span class="text-sm font-medium text-slate-800">UV（きらめき）</span>
                   <span class="text-slate-400">▾</span>
@@ -296,7 +296,7 @@
                 </div>
               </details>
 
-              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+              <details class="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm">
                 <summary class="cursor-pointer select-none flex items-center justify-between">
                   <span class="text-sm font-medium text-slate-800">鳥（さえずり）</span>
                   <span class="text-slate-400">▾</span>
@@ -306,7 +306,7 @@
                 </div>
               </details>
 
-              <details class="rounded-2xl border border-slate-200 bg-white p-4">
+              <details class="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm">
                 <summary class="cursor-pointer select-none flex items-center justify-between">
                   <span class="text-sm font-medium text-slate-800">ハーモニー</span>
                   <span class="text-slate-400">▾</span>
@@ -436,10 +436,18 @@
     b.textContent = sub;
   }
 
-  function setStatusChip(text = "—"){
+  function setStatusChip(text = ""){
     const el = document.getElementById("statusChip");
     if (!el) return;
     el.textContent = text;
+  }
+
+  function setStatusChipVisibility(time){
+    const el = document.getElementById("statusChip");
+    if (!el) return;
+    const hide = (time === "night" || time === "late");
+    el.classList.toggle("hidden", hide);
+    if (hide) el.textContent = "";
   }
 
   function applyWhiteByTime(time){
@@ -550,7 +558,7 @@
   // =========================
   let isRunning = false;
 
-  let masterReverb, masterComp, masterLimiter;
+  let masterReverb, masterComp, masterLimiter, masterOut;
   let filter;
 
   let sparkle;
@@ -562,6 +570,7 @@
   let sparkleMulti = null;
   let sparkleAutoPanner = null;
   let sparkleHitPanner = null;
+  let sparkleRhythmReverb = null;
 
   let sparkleLoop, birdLoop, windLoop, waterLoop;
   let chordEventId = null;
@@ -584,6 +593,8 @@
   let lastRoot = null;
 
   let lastComputedR = null;
+  let transportGuardTimer = null;
+  let isStopping = false;
 
   const activeChordTimers = new Set();
   const activeChordNodes = new Set();
@@ -617,20 +628,23 @@
   function ensureAudioGraph(){
     if (sparkle) return;
 
-    masterReverb = new Tone.Reverb({ decay: 14.5, wet: 0.42 }).toDestination();
+    masterOut = new Tone.Gain(0.0001).toDestination();
+    masterReverb = new Tone.Reverb({ decay: 14.5, wet: 0.42 }).connect(masterOut);
     masterComp = new Tone.Compressor({ threshold: -18, ratio: 2.2, attack: 0.01, release: 0.22 }).connect(masterReverb);
     masterLimiter = new Tone.Limiter(-1).connect(masterComp);
 
     filter = new Tone.Filter({ type: "lowpass", frequency: 1900, rolloff: -12 }).connect(masterLimiter);
 
+    sparkleRhythmReverb = new Tone.Reverb({ decay: 14.0, wet: 0.48, preDelay: 0.03 });
     sparkleAutoPanner = new Tone.AutoPanner({ frequency: 0.10, depth: 0.85, wet: 1.0 }).start();
     sparkleHitPanner = new Tone.Panner(0);
     sparkleAutoPanner.connect(sparkleHitPanner);
-    sparkleHitPanner.connect(filter);
+    sparkleHitPanner.connect(sparkleRhythmReverb);
+    sparkleRhythmReverb.connect(filter);
 
     sparkle = new Tone.Synth({
       oscillator: { type: "sine" },
-      envelope: { attack: 0.01, decay: 0.10, sustain: 0.0, release: 1.4 }
+      envelope: { attack: 0.016, decay: 0.36, sustain: 0.0, release: 3.8 }
     });
     sparkle.volume.value = -12;
 
@@ -846,6 +860,16 @@
       sparkleAutoPanner.depth = (env.weatherCat === "rain") ? 0.75 : 0.85;
     }
 
+    if (sparkleRhythmReverb){
+      let rhythmWet = 0.48;
+      let rhythmDecay = 14.0;
+      if (env.time === "day" || env.time === "morning") { rhythmWet = 0.42; rhythmDecay = 12.2; }
+      if (env.time === "night" || env.time === "late") { rhythmWet = 0.56; rhythmDecay = 16.8; }
+      if (env.weatherCat === "rain") { rhythmWet += 0.06; rhythmDecay += 1.4; }
+      sparkleRhythmReverb.wet.value = clamp(rhythmWet, 0.34, 0.72);
+      sparkleRhythmReverb.decay = clamp(rhythmDecay, 10.0, 22.0);
+    }
+
     if (windFilter){
       windFilter.frequency.value = (env.weatherCat === "rain") ? 360 : 420;
       windFilter.Q.value = (env.time === "late") ? 1.1 : 0.9;
@@ -913,11 +937,16 @@
     }
 
     const windText = `${(lastWeather.wind ?? 0).toFixed(1)} m/s`;
-    const uvText = (uv === null) ? "—" : uv.toFixed(1);
-    setMediaSessionMetadata(`${env.season} / ${env.weatherCat} / wind ${windText} / UV ${uvText}`);
+    const showUv = !(env.time === "night" || env.time === "late");
+    const uvText = (showUv && uv !== null) ? uv.toFixed(1) : "—";
+    const uvSegment = showUv ? ` / UV ${uvText}` : "";
+    setMediaSessionMetadata(`${env.season} / ${env.weatherCat} / wind ${windText}${uvSegment}`);
 
-    const sub = `Key ${key} · ${prettyTimeLabel(env.time)} · ${prettyWeatherLabel(env.weatherCat)} · 風 ${(lastWeather.wind ?? 0).toFixed(1)} · UV ${uvText}`;
-    setStatusChip(describeWeather(lastWeather.code));
+    const sub =
+      `Key ${key} · ${prettyTimeLabel(env.time)} · ${prettyWeatherLabel(env.weatherCat)} · 風 ${(lastWeather.wind ?? 0).toFixed(1)}` +
+      (showUv ? ` · UV ${uvText}` : "");
+    setStatusChipVisibility(env.time);
+    if (showUv) setStatusChip("同期中");
     if (isRunning) setStatus("再生中", sub);
 
     lastComputedR = { ...env, key, bpm };
@@ -931,6 +960,29 @@
       try { Tone.Transport.clear(chordEventId); } catch(e){}
       chordEventId = null;
     }
+  }
+
+  function startTransportGuard(){
+    if (transportGuardTimer) return;
+    transportGuardTimer = setInterval(async () => {
+      if (!isRunning) return;
+      try {
+        if (Tone.context.state !== "running") {
+          await Tone.start();
+        }
+        if (Tone.Transport.state !== "started") {
+          Tone.Transport.start();
+        }
+      } catch (e) {
+        console.warn("transport guard", e);
+      }
+    }, 12000);
+  }
+
+  function stopTransportGuard(){
+    if (!transportGuardTimer) return;
+    clearInterval(transportGuardTimer);
+    transportGuardTimer = null;
   }
 
   function clearCajonScheduler(){
@@ -947,24 +999,52 @@
     }
   }
 
+  function harmonyDurationSeconds(r){
+    let min = 24.0;
+    let max = 56.0;
+
+    if (r.time === "morning") { min = 22.0; max = 48.0; }
+    if (r.time === "day") { min = 20.0; max = 44.0; }
+    if (r.time === "evening") { min = 26.0; max = 54.0; }
+    if (r.time === "night") { min = 30.0; max = 62.0; }
+    if (r.time === "late") { min = 44.0; max = 96.0; }
+
+    if (r.weatherCat === "rain") {
+      min += 4.0;
+      max += 8.0;
+    }
+
+    const shortChance = (r.time === "day" || r.time === "morning") ? 0.34 : 0.20;
+    if (Math.random() < shortChance) {
+      return randomBetween(min * 0.62, min * 0.90);
+    }
+
+    const longChance = (r.time === "night" || r.time === "late") ? 0.42 : 0.26;
+    if (Math.random() < longChance) {
+      return randomBetween(max * 0.82, max * 1.12);
+    }
+
+    return randomBetween(min, max);
+  }
+
   function harmonyGapSeconds(r){
-    let g = randomBetween(0.9, 3.2);
+    let g = randomBetween(0.6, 2.2);
 
     const burstChance =
-      (r.time === "day" || r.time === "morning") ? 0.18 :
-      (r.time === "evening") ? 0.14 :
-      (r.time === "night") ? 0.10 :
-      0.07;
+      (r.time === "day" || r.time === "morning") ? 0.30 :
+      (r.time === "evening") ? 0.24 :
+      (r.time === "night") ? 0.18 :
+      0.12;
 
     if (Math.random() < burstChance){
       g *= randomBetween(0.25, 0.55);
     }
 
-    if (r.time === "late") g *= 1.18;
-    if (r.time === "night") g *= 1.08;
+    if (r.time === "late") g *= 1.55;
+    if (r.time === "night") g *= 1.10;
     if (r.weatherCat === "rain") g *= 1.06;
 
-    return clamp(g, 0.35, 5.0);
+    return clamp(g, 0.22, 3.8);
   }
 
   function octaveShifted(note, octShift){
@@ -973,11 +1053,11 @@
   }
 
   function pickOverlapMode(r){
-    let base = 0.52;
-    if (r.time === "day" || r.time === "morning") base = 0.60;
-    if (r.time === "evening") base = 0.54;
-    if (r.time === "night") base = 0.44;
-    if (r.time === "late") base = 0.32;
+    let base = 0.68;
+    if (r.time === "day" || r.time === "morning") base = 0.76;
+    if (r.time === "evening") base = 0.70;
+    if (r.time === "night") base = 0.58;
+    if (r.time === "late") base = 0.24;
     if (r.weatherCat === "rain") base *= 0.92;
 
     if (Math.random() >= base) return "none";
@@ -997,7 +1077,7 @@
     if (root === lastRoot) root = choices[Math.floor(Math.random() * choices.length)];
     lastRoot = root;
 
-    const playDur = randomBetween(26.0, 52.0);
+    const playDur = harmonyDurationSeconds(r);
     const gapDur  = harmonyGapSeconds(r);
 
     let oct = choose([-1, 0, 0, 0, +1, +1]);
@@ -1013,7 +1093,8 @@
     chordPad.volume.value = -18;
 
     let peak = 0.15 + Math.random() * 0.17;
-    if (r.time === "night" || r.time === "late") peak *= 0.78;
+    if (r.time === "night") peak *= 0.70;
+    if (r.time === "late") peak *= 0.56;
     if (r.weatherCat === "rain") peak *= 0.86;
 
     const t0 = startTime;
@@ -1081,11 +1162,11 @@
   }
 
   function pickSparkleDelayRefreshChance(r){
-    if (r.time === "day") return 0.06;
-    if (r.time === "morning") return 0.05;
-    if (r.time === "evening") return 0.04;
-    if (r.time === "night") return 0.03;
-    return 0.02;
+    if (r.time === "day") return 0.003;
+    if (r.time === "morning") return 0.002;
+    if (r.time === "evening") return 0.0015;
+    if (r.time === "night") return 0.0;
+    return 0.0;
   }
 
   function rebuildSparkleDelayIfNeeded(r){
@@ -1106,9 +1187,9 @@
     const dayish = (r.time === "morning" || r.time === "day");
     const nightish = (r.time === "night" || r.time === "late");
 
-    const short = ["32n","16n","16t"];
-    const mid   = ["24n","8t","12n"];
-    const long  = ["8n","4n","6n"];
+    const short = ["16n","12n","8t"];
+    const mid   = ["8n","6n","4t"];
+    const long  = ["4n","3n","2n"];
 
     let pool = [...short, ...mid];
     if (dayish) pool = [...short, ...short, ...mid, "16n"];
@@ -1117,7 +1198,7 @@
 
     const d = choose(pool);
     const sec = Tone.Time(d).toSeconds();
-    return clamp(sec, 0.05, 0.60);
+    return clamp(sec, 0.12, 1.20);
   }
 
   function applyHitPan(time, r){
@@ -1625,28 +1706,47 @@
       label.textContent = "Start";
       sub.textContent = "タップで再生";
       iconSvg.innerHTML = '<path d="M8 5v14l11-7z"></path>';
-      setStatusChip("—");
+      setStatusChip("");
       setStatus("待機中", "—");
     }
     updatePlaybackState();
   }
 
   async function start(){
+    if (isStopping) return;
     ensureAudioGraph();
-    Tone.Destination.mute = false;
     await Tone.start();
     await requestWakeLock();
+
+    const now = Tone.now();
+    if (masterOut){
+      masterOut.gain.cancelScheduledValues(now);
+      masterOut.gain.setValueAtTime(Math.max(0.0001, masterOut.gain.value), now);
+      masterOut.gain.exponentialRampToValueAtTime(1.0, now + 1.4);
+    }
 
     Tone.Transport.start();
     rebuildLoops();
     isRunning = true;
+    startTransportGuard();
     setButtonState();
     applyParams();
   }
 
-  function stop(){
+  async function stop(){
+    if (isStopping) return;
+    isStopping = true;
     isRunning = false;
-    Tone.Destination.mute = true;
+
+    const fadeSeconds = 1.8;
+    const now = Tone.now();
+    if (masterOut){
+      masterOut.gain.cancelScheduledValues(now);
+      masterOut.gain.setValueAtTime(Math.max(0.0001, masterOut.gain.value), now);
+      masterOut.gain.exponentialRampToValueAtTime(0.0001, now + fadeSeconds);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, Math.floor(fadeSeconds * 1000)));
 
     clearHarmonyScheduler();
     clearCajonScheduler();
@@ -1669,7 +1769,6 @@
       sparkleMulti = null;
     }
 
-    const now = Tone.now();
     try{
       if (windGain) windGain.gain.setValueAtTime(0.000001, now);
       if (waterGain) waterGain.gain.setValueAtTime(0.000001, now);
@@ -1677,17 +1776,20 @@
       if (gamelanGain) gamelanGain.gain.setValueAtTime(Math.max(0.03, gamelanGain.gain.value * 0.9), now);
     } catch(e){}
 
-    setStatusChip(describeWeather(lastWeather.code));
+    setStatusChip("");
+    setStatusChipVisibility("late");
     setStatus("停止中", "—");
     setButtonState();
+    stopTransportGuard();
+    isStopping = false;
 
     releaseWakeLock();
   }
 
   async function refreshWeather(){
     try{
-      setStatusChip("—");
-      setStatus("取得中…", "天気/風/UV");
+      setStatusChip("");
+      setStatus("取得中…", "天気/風");
 
       const pos = await getCurrentPosition();
       const lat = pos.coords.latitude;
@@ -1701,19 +1803,23 @@
       applyParams();
 
       if (isRunning){
-        rebuildLoops();
         applyParams();
       } else {
         const env = getEnv();
         const key = keyFromSeason(env.season);
+        const showUv = !(env.time === "night" || env.time === "late");
         const uvText = (typeof lastWeather.uv === "number") ? lastWeather.uv.toFixed(1) : "—";
-        const sub = `Key ${key} · ${prettyTimeLabel(env.time)} · ${prettyWeatherLabel(env.weatherCat)} · 風 ${(lastWeather.wind ?? 0).toFixed(1)} · UV ${uvText}`;
-        setStatusChip(describeWeather(lastWeather.code));
+        const sub =
+          `Key ${key} · ${prettyTimeLabel(env.time)} · ${prettyWeatherLabel(env.weatherCat)} · 風 ${(lastWeather.wind ?? 0).toFixed(1)}` +
+          (showUv ? ` · UV ${uvText}` : "");
+        setStatusChipVisibility(env.time);
+        if (showUv) setStatusChip("同期中");
         setStatus("待機中", sub);
       }
     } catch(e){
       console.error(e);
-      setStatusChip("—");
+      setStatusChip("");
+      setStatusChipVisibility("late");
       setStatus("エラー", e.message);
     }
   }
@@ -1786,15 +1892,13 @@
 
   document.getElementById("btnToggle").addEventListener("click", async () => {
     if (!isRunning) await start();
-    else stop();
+    else await stop();
   });
 
   document.getElementById("btnRefresh").addEventListener("click", () => refreshWeather());
 
   ["seasonSel","timeSel","weatherSel"].forEach(id => {
     document.getElementById(id).addEventListener("change", () => {
-      applyParams();
-      if (isRunning) rebuildLoops();
       applyParams();
     });
   });
