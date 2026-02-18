@@ -1187,18 +1187,45 @@
     const dayish = (r.time === "morning" || r.time === "day");
     const nightish = (r.time === "night" || r.time === "late");
 
-    const short = ["16n","12n","8t"];
-    const mid   = ["8n","6n","4t"];
-    const long  = ["4n","3n","2n"];
+// note-length pools
+const short = ["16n","12n","8t","8n"];
+const mid   = ["8n","6n","4t","4n"];
+const long  = ["4n","3n","2n","1m"];
 
-    let pool = [...short, ...mid];
-    if (dayish) pool = [...short, ...short, ...mid, "16n"];
-    if (nightish) pool = [...mid, ...long, ...mid];
-    if (r.weatherCat === "rain") pool = [...pool, ...long];
+let pool = [...short, ...mid, ...mid];
+if (dayish)   pool = [...short, ...mid, ...mid, ...long];
+if (nightish) pool = [...mid, ...long, ...long, ...mid];
+if (r.weatherCat === "rain") pool = [...pool, ...long, "1m"];
+
+const d = choose(pool);
+
+// interval seconds (add gentle jitter, keep safe bounds)
+const sec = Tone.Time(d).toSeconds() * randomBetween(0.92, 1.45);
+return clamp(sec, 0.28, 2.80);
+
+
+    let pool = [...short, ...mid, ...mid];
+    if (dayish) pool = [...short, ...mid, ...mid, ...long];
+    if (nightish) pool = [...mid, ...long, ...long, ...mid];
+    if (r.weatherCat === "rain") pool = [...pool, ...long, "1m"];
 
     const d = choose(pool);
-    const sec = Tone.Time(d).toSeconds();
-    return clamp(sec, 0.12, 1.20);
+// note-length pools
+const short = ["16n","12n","8t","8n"];
+const mid   = ["8n","6n","4t","4n"];
+const long  = ["4n","3n","2n","1m"];
+
+let pool = [...short, ...mid, ...mid];
+if (dayish)   pool = [...short, ...mid, ...mid, ...long];
+if (nightish) pool = [...mid, ...long, ...long, ...mid];
+if (r.weatherCat === "rain") pool = [...pool, ...long, "1m"];
+
+const d = choose(pool);
+
+// interval seconds (add gentle jitter, keep safe bounds)
+const sec = Tone.Time(d).toSeconds() * randomBetween(0.92, 1.45);
+return clamp(sec, 0.28, 2.80);
+
   }
 
   function applyHitPan(time, r){
@@ -1541,7 +1568,7 @@
 
         if (Math.random() < 0.16){
           const note2 = pickRhythmNote(pack, r);
-          const dur2 = clamp(durSec * randomBetween(0.75, 1.15), 0.05, 0.55);
+          const dur2 = clamp(durSec * randomBetween(0.78, 1.28), 0.24, 2.40);
           const isLow2 = Tone.Frequency(note2).toMidi() < Tone.Frequency(pack.hi[0]).toMidi();
           const amp2 = isLow2 ? amp*0.78 : amp*0.82;
 
