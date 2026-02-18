@@ -571,6 +571,7 @@
   let sparkleAutoPanner = null;
   let sparkleHitPanner = null;
   let sparkleRhythmReverb = null;
+  let sparkleFxSend = null, sparkleFxHP = null, sparkleFxDelay = null, sparkleFxVerb = null, sparkleFxGain = null;
 
   let sparkleLoop, birdLoop, windLoop, waterLoop;
   let chordEventId = null;
@@ -649,14 +650,13 @@
   }
 
   function connectedRhythmDuration(stepSec){
-    const overlap = 0.06;
-    return clamp(stepSec * 0.92 + overlap, 0.22, 0.52);
+    const overlap = 0.09;
+    return clamp(stepSec * 0.96 + overlap, 0.26, 0.42);
   }
 
   function rhythmHitTime(baseTime){
-    const early = 0.02;
-    const jitter = randomBetween(-0.008, 0.008);
-    return Math.max(Tone.now() + 0.001, baseTime - early + jitter);
+    const late = randomBetween(0.0, 0.018);
+    return Math.max(Tone.now() + 0.001, baseTime + late);
   }
 
   function ensureAudioGraph(){
@@ -676,9 +676,17 @@
     sparkleHitPanner.connect(sparkleRhythmReverb);
     sparkleRhythmReverb.connect(filter);
 
+    sparkleFxSend = new Tone.Gain(0.35);
+    sparkleFxHP = new Tone.Filter({ type: "highpass", frequency: 250, rolloff: -12 });
+    sparkleFxDelay = new Tone.PingPongDelay({ delayTime: "16n", feedback: 0.18, wet: 0.10 });
+    sparkleFxVerb = new Tone.Reverb({ decay: 2.6, preDelay: 0.02, wet: 0.18 });
+    sparkleFxGain = new Tone.Gain(0.9);
+    sparkleHitPanner.connect(sparkleFxSend);
+    sparkleFxSend.chain(sparkleFxHP, sparkleFxDelay, sparkleFxVerb, sparkleFxGain, filter);
+
     sparkle = new Tone.Synth({
       oscillator: { type: "sine" },
-      envelope: { attack: 0.016, decay: 0.36, sustain: 0.0, release: 3.8 }
+      envelope: { attack: 0.004, decay: 0.30, sustain: 0.0, release: 0.12 }
     });
     sparkle.volume.value = -12;
 
@@ -902,6 +910,18 @@
       if (env.weatherCat === "rain") { rhythmWet += 0.06; rhythmDecay += 1.4; }
       sparkleRhythmReverb.wet.value = clamp(rhythmWet, 0.34, 0.72);
       sparkleRhythmReverb.decay = clamp(rhythmDecay, 10.0, 22.0);
+    }
+
+    if (sparkleFxSend && sparkleFxDelay && sparkleFxVerb && sparkleFxHP){
+      let send = 0.35, delayWet = 0.10, fb = 0.18, verbWet = 0.18, hp = 250;
+      if (env.time === "day" || env.time === "morning") { send = 0.30; delayWet = 0.08; verbWet = 0.16; hp = 280; }
+      if (env.time === "night" || env.time === "late") { send = 0.42; delayWet = 0.14; verbWet = 0.23; hp = 300; }
+      if (env.weatherCat === "rain") { send += 0.04; delayWet += 0.02; verbWet += 0.03; fb += 0.03; }
+      sparkleFxSend.gain.value = clamp(send, 0.22, 0.55);
+      sparkleFxDelay.wet.value = clamp(delayWet, 0.05, 0.22);
+      sparkleFxDelay.feedback.value = clamp(fb, 0.10, 0.30);
+      sparkleFxVerb.wet.value = clamp(verbWet, 0.12, 0.32);
+      sparkleFxHP.frequency.value = clamp(hp, 180, 420);
     }
 
     if (windFilter){
@@ -1586,7 +1606,7 @@
           const dur2 = clamp(dur2Base, 0.22, 0.52);
           const isLow2 = Tone.Frequency(note2).toMidi() < Tone.Frequency(pack.hi[0]).toMidi();
           const amp2 = isLow2 ? amp*0.78 : amp*0.82;
-          const hitTime2 = Math.max(hitTime + randomBetween(0.01, 0.03), Tone.now() + 0.001);
+          const hitTime2 = Math.max(hitTime + randomBetween(0.016, 0.036), Tone.now() + 0.001);
 
           if (acquireRhythmVoice(hitTime2, dur2)){
             sparkle.triggerAttackRelease(note2, dur2, hitTime2, amp2);
