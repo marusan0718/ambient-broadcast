@@ -636,7 +636,6 @@
     filter = new Tone.Filter({ type: "lowpass", frequency: 1900, rolloff: -12 }).connect(masterLimiter);
 
     sparkleRhythmReverb = new Tone.Reverb({ decay: 14.0, wet: 0.48, preDelay: 0.03 });
-    sparkleRhythmReverb = new Tone.Reverb({ decay: 11.0, wet: 0.40, preDelay: 0.02 });
     sparkleAutoPanner = new Tone.AutoPanner({ frequency: 0.10, depth: 0.85, wet: 1.0 }).start();
     sparkleHitPanner = new Tone.Panner(0);
     sparkleAutoPanner.connect(sparkleHitPanner);
@@ -646,7 +645,6 @@
     sparkle = new Tone.Synth({
       oscillator: { type: "sine" },
       envelope: { attack: 0.016, decay: 0.36, sustain: 0.0, release: 3.8 }
-      envelope: { attack: 0.014, decay: 0.22, sustain: 0.0, release: 2.6 }
     });
     sparkle.volume.value = -12;
 
@@ -870,13 +868,6 @@
       if (env.weatherCat === "rain") { rhythmWet += 0.06; rhythmDecay += 1.4; }
       sparkleRhythmReverb.wet.value = clamp(rhythmWet, 0.34, 0.72);
       sparkleRhythmReverb.decay = clamp(rhythmDecay, 10.0, 22.0);
-      let rhythmWet = 0.40;
-      let rhythmDecay = 11.0;
-      if (env.time === "day" || env.time === "morning") { rhythmWet = 0.36; rhythmDecay = 9.8; }
-      if (env.time === "night" || env.time === "late") { rhythmWet = 0.46; rhythmDecay = 13.8; }
-      if (env.weatherCat === "rain") { rhythmWet += 0.07; rhythmDecay += 1.6; }
-      sparkleRhythmReverb.wet.value = clamp(rhythmWet, 0.28, 0.62);
-      sparkleRhythmReverb.decay = clamp(rhythmDecay, 8.0, 18.0);
     }
 
     if (windFilter){
@@ -1017,7 +1008,6 @@
     if (r.time === "evening") { min = 26.0; max = 54.0; }
     if (r.time === "night") { min = 30.0; max = 62.0; }
     if (r.time === "late") { min = 44.0; max = 96.0; }
-    if (r.time === "late") { min = 34.0; max = 72.0; }
 
     if (r.weatherCat === "rain") {
       min += 4.0;
@@ -1051,7 +1041,6 @@
     }
 
     if (r.time === "late") g *= 1.55;
-    if (r.time === "late") g *= 1.22;
     if (r.time === "night") g *= 1.10;
     if (r.weatherCat === "rain") g *= 1.06;
 
@@ -1069,7 +1058,6 @@
     if (r.time === "evening") base = 0.70;
     if (r.time === "night") base = 0.58;
     if (r.time === "late") base = 0.24;
-    if (r.time === "late") base = 0.42;
     if (r.weatherCat === "rain") base *= 0.92;
 
     if (Math.random() >= base) return "none";
@@ -1179,11 +1167,6 @@
     if (r.time === "evening") return 0.0015;
     if (r.time === "night") return 0.0;
     return 0.0;
-    if (r.time === "day") return 0.012;
-    if (r.time === "morning") return 0.010;
-    if (r.time === "evening") return 0.008;
-    if (r.time === "night") return 0.006;
-    return 0.004;
   }
 
   function rebuildSparkleDelayIfNeeded(r){
@@ -1373,6 +1356,19 @@
     return clamp(sec, 0.10, 1.60);
   }
 
+  function setGamelanFrequencyAt(hz, time){
+    if (!gamelan) return;
+    if (gamelan.frequency && typeof gamelan.frequency.setValueAtTime === "function"){
+      gamelan.frequency.setValueAtTime(hz, time);
+      return;
+    }
+    if (gamelan.frequency && typeof gamelan.frequency.value === "number"){
+      gamelan.frequency.value = hz;
+      return;
+    }
+    gamelan.frequency = hz;
+  }
+
   function gamelanHit(time, r){
     if (!gamelan) return;
 
@@ -1389,19 +1385,19 @@
     const roll = Math.random();
 
     // まず周波数をセット（MetalSynthはfrequencyを読む）
-    gamelan.frequency = hz;
+    setGamelanFrequencyAt(hz, time);
 
     if (roll < 0.70){
       gamelan.triggerAttackRelease("16n", time, v);
     } else if (roll < 0.90){
       gamelan.triggerAttackRelease("16n", time, v);
-      gamelan.frequency = hz * choose([1.00, 1.12, 0.89]);
+      setGamelanFrequencyAt(hz * choose([1.00, 1.12, 0.89]), time + randomBetween(0.01, 0.03));
       gamelan.triggerAttackRelease("32n", time + randomBetween(0.06, 0.12), v*0.70);
     } else {
       // 小さめの3連（点描のきらめき）
       const gaps = [0.06, 0.10, 0.14].map(x => x + randomBetween(-0.01, 0.01));
       for (let i=0; i<3; i++){
-        gamelan.frequency = hz * choose([1.00, 1.12, 1.26, 0.89]);
+        setGamelanFrequencyAt(hz * choose([1.00, 1.12, 1.26, 0.89]), time + gaps[i]);
         gamelan.triggerAttackRelease("32n", time + gaps[i], v*(0.62 - i*0.10));
       }
     }
@@ -1755,17 +1751,18 @@
     isStopping = true;
     isRunning = false;
 
-    const fadeSeconds = 1.8;
-    const now = Tone.now();
-    if (masterOut){
-      masterOut.gain.cancelScheduledValues(now);
-      masterOut.gain.setValueAtTime(Math.max(0.0001, masterOut.gain.value), now);
-      masterOut.gain.exponentialRampToValueAtTime(0.0001, now + fadeSeconds);
-    }
+    try{
+      const fadeSeconds = 1.8;
+      const now = Tone.now();
+      if (masterOut){
+        masterOut.gain.cancelScheduledValues(now);
+        masterOut.gain.setValueAtTime(Math.max(0.0001, masterOut.gain.value), now);
+        masterOut.gain.exponentialRampToValueAtTime(0.0001, now + fadeSeconds);
+      }
 
-    await new Promise(resolve => setTimeout(resolve, Math.floor(fadeSeconds * 1000)));
+      await new Promise(resolve => setTimeout(resolve, Math.floor(fadeSeconds * 1000)));
 
-    clearHarmonyScheduler();
+      clearHarmonyScheduler();
     clearCajonScheduler();
     clearGamelanScheduler();
 
@@ -1793,14 +1790,16 @@
       if (gamelanGain) gamelanGain.gain.setValueAtTime(Math.max(0.03, gamelanGain.gain.value * 0.9), now);
     } catch(e){}
 
-    setStatusChip("");
-    setStatusChipVisibility("late");
-    setStatus("停止中", "—");
-    setButtonState();
-    stopTransportGuard();
-    isStopping = false;
+      setStatusChip("");
+      setStatusChipVisibility("late");
+      setStatus("停止中", "—");
+      setButtonState();
+      stopTransportGuard();
 
-    releaseWakeLock();
+      releaseWakeLock();
+    } finally {
+      isStopping = false;
+    }
   }
 
   async function refreshWeather(){
