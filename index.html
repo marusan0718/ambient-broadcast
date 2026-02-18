@@ -558,7 +558,7 @@
   // =========================
   let isRunning = false;
 
-  let masterReverb, masterComp, masterLimiter;
+  let masterReverb, masterComp, masterLimiter, masterOut;
   let filter;
 
   let sparkle;
@@ -594,6 +594,7 @@
 
   let lastComputedR = null;
   let transportGuardTimer = null;
+  let isStopping = false;
 
   const activeChordTimers = new Set();
   const activeChordNodes = new Set();
@@ -627,7 +628,8 @@
   function ensureAudioGraph(){
     if (sparkle) return;
 
-    masterReverb = new Tone.Reverb({ decay: 14.5, wet: 0.42 }).toDestination();
+    masterOut = new Tone.Gain(0.0001).toDestination();
+    masterReverb = new Tone.Reverb({ decay: 14.5, wet: 0.42 }).connect(masterOut);
     masterComp = new Tone.Compressor({ threshold: -18, ratio: 2.2, attack: 0.01, release: 0.22 }).connect(masterReverb);
     masterLimiter = new Tone.Limiter(-1).connect(masterComp);
 
@@ -1728,10 +1730,17 @@
   }
 
   async function start(){
+    if (isStopping) return;
     ensureAudioGraph();
-    Tone.Destination.mute = false;
     await Tone.start();
     await requestWakeLock();
+
+    const now = Tone.now();
+    if (masterOut){
+      masterOut.gain.cancelScheduledValues(now);
+      masterOut.gain.setValueAtTime(Math.max(0.0001, masterOut.gain.value), now);
+      masterOut.gain.exponentialRampToValueAtTime(1.0, now + 1.4);
+    }
 
     Tone.Transport.start();
     rebuildLoops();
@@ -1741,9 +1750,20 @@
     applyParams();
   }
 
-  function stop(){
+  async function stop(){
+    if (isStopping) return;
+    isStopping = true;
     isRunning = false;
-    Tone.Destination.mute = true;
+
+    const fadeSeconds = 1.8;
+    const now = Tone.now();
+    if (masterOut){
+      masterOut.gain.cancelScheduledValues(now);
+      masterOut.gain.setValueAtTime(Math.max(0.0001, masterOut.gain.value), now);
+      masterOut.gain.exponentialRampToValueAtTime(0.0001, now + fadeSeconds);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, Math.floor(fadeSeconds * 1000)));
 
     clearHarmonyScheduler();
     clearCajonScheduler();
@@ -1766,7 +1786,6 @@
       sparkleMulti = null;
     }
 
-    const now = Tone.now();
     try{
       if (windGain) windGain.gain.setValueAtTime(0.000001, now);
       if (waterGain) waterGain.gain.setValueAtTime(0.000001, now);
@@ -1779,6 +1798,7 @@
     setStatus("停止中", "—");
     setButtonState();
     stopTransportGuard();
+    isStopping = false;
 
     releaseWakeLock();
   }
@@ -1889,7 +1909,7 @@
 
   document.getElementById("btnToggle").addEventListener("click", async () => {
     if (!isRunning) await start();
-    else stop();
+    else await stop();
   });
 
   document.getElementById("btnRefresh").addEventListener("click", () => refreshWeather());
