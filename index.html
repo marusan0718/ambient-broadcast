@@ -1704,7 +1704,7 @@
       label.textContent = "Start";
       sub.textContent = "タップで再生";
       iconSvg.innerHTML = '<path d="M8 5v14l11-7z"></path>';
-      setStatusChip("—");
+      setStatusChip("");
       setStatus("待機中", "—");
     }
     updatePlaybackState();
@@ -1879,7 +1879,6 @@
 
   ["seasonSel","timeSel","weatherSel"].forEach(id => {
     document.getElementById(id).addEventListener("change", () => {
-      applyParams();
       applyParams();
     });
   });
