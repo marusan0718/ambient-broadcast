@@ -598,6 +598,8 @@
 
   const activeChordTimers = new Set();
   const activeChordNodes = new Set();
+  const rhythmVoiceTimers = new Set();
+  let rhythmVoices = 0;
 
   function disposeAllChords(){
     activeChordTimers.forEach(tid => { try{ clearTimeout(tid); } catch(e){} });
@@ -623,6 +625,38 @@
     }, ms);
 
     activeChordTimers.add(tid);
+  }
+
+  function clearRhythmVoiceTimers(){
+    rhythmVoiceTimers.forEach(tid => { try{ clearTimeout(tid); } catch(e){} });
+    rhythmVoiceTimers.clear();
+    rhythmVoices = 0;
+  }
+
+  function acquireRhythmVoice(startTime, durSec){
+    if (rhythmVoices >= 2) return false;
+    rhythmVoices += 1;
+
+    const now = Tone.now();
+    const releaseAt = startTime + durSec + 0.03;
+    const ms = Math.max(0, Math.floor((releaseAt - now) * 1000));
+    const tid = setTimeout(() => {
+      rhythmVoices = Math.max(0, rhythmVoices - 1);
+      rhythmVoiceTimers.delete(tid);
+    }, ms);
+    rhythmVoiceTimers.add(tid);
+    return true;
+  }
+
+  function connectedRhythmDuration(stepSec){
+    const overlap = 0.06;
+    return clamp(stepSec * 0.92 + overlap, 0.22, 0.52);
+  }
+
+  function rhythmHitTime(baseTime){
+    const early = 0.02;
+    const jitter = randomBetween(-0.008, 0.008);
+    return Math.max(Tone.now() + 0.001, baseTime - early + jitter);
   }
 
   function ensureAudioGraph(){
@@ -1187,22 +1221,9 @@
     const dayish = (r.time === "morning" || r.time === "day");
     const nightish = (r.time === "night" || r.time === "late");
 
-// note-length pools
-const short = ["16n","12n","8t","8n"];
-const mid   = ["8n","6n","4t","4n"];
-const long  = ["4n","3n","2n","1m"];
-
-let pool = [...short, ...mid, ...mid];
-if (dayish)   pool = [...short, ...mid, ...mid, ...long];
-if (nightish) pool = [...mid, ...long, ...long, ...mid];
-if (r.weatherCat === "rain") pool = [...pool, ...long, "1m"];
-
-const d = choose(pool);
-
-// interval seconds (add gentle jitter, keep safe bounds)
-const sec = Tone.Time(d).toSeconds() * randomBetween(0.92, 1.45);
-return clamp(sec, 0.28, 2.80);
-
+    const short = ["8t","8n","6n"];
+    const mid   = ["4t","4n","3n"];
+    const long  = ["2n","1m","1m"];
 
     let pool = [...short, ...mid, ...mid];
     if (dayish) pool = [...short, ...mid, ...mid, ...long];
@@ -1210,22 +1231,8 @@ return clamp(sec, 0.28, 2.80);
     if (r.weatherCat === "rain") pool = [...pool, ...long, "1m"];
 
     const d = choose(pool);
-// note-length pools
-const short = ["16n","12n","8t","8n"];
-const mid   = ["8n","6n","4t","4n"];
-const long  = ["4n","3n","2n","1m"];
-
-let pool = [...short, ...mid, ...mid];
-if (dayish)   pool = [...short, ...mid, ...mid, ...long];
-if (nightish) pool = [...mid, ...long, ...long, ...mid];
-if (r.weatherCat === "rain") pool = [...pool, ...long, "1m"];
-
-const d = choose(pool);
-
-// interval seconds (add gentle jitter, keep safe bounds)
-const sec = Tone.Time(d).toSeconds() * randomBetween(0.92, 1.45);
-return clamp(sec, 0.28, 2.80);
-
+    const sec = Tone.Time(d).toSeconds() * randomBetween(0.92, 1.45);
+    return clamp(sec, 0.28, 2.80);
   }
 
   function applyHitPan(time, r){
@@ -1518,6 +1525,7 @@ return clamp(sec, 0.28, 2.80);
     clearHarmonyScheduler();
     clearCajonScheduler();
     clearGamelanScheduler();
+    clearRhythmVoiceTimers();
 
     const r = applyParams();
 
@@ -1557,25 +1565,32 @@ return clamp(sec, 0.28, 2.80);
       p = clamp(p, 0.14, 0.82);
 
       if (Math.random() < p){
-        applyHitPan(time, r);
+        const stepSec = sparkleInterval;
+        const baseDur = connectedRhythmDuration(stepSec);
+        const hitTime = rhythmHitTime(time);
+
+        applyHitPan(hitTime, r);
 
         const note = pickRhythmNote(pack, r);
-        const durSec = randomRhythmDuration(r);
-
         const isLowish = Tone.Frequency(note).toMidi() < Tone.Frequency(pack.hi[0]).toMidi();
         let amp = 0.40 + Math.random() * 0.12;
         if (isLowish) amp *= 0.78;
 
+        if (acquireRhythmVoice(hitTime, baseDur)){
+          sparkle.triggerAttackRelease(note, baseDur, hitTime, amp);
+        }
+
         if (Math.random() < 0.16){
           const note2 = pickRhythmNote(pack, r);
-          const dur2 = clamp(durSec * randomBetween(0.78, 1.28), 0.24, 2.40);
+          const dur2Base = connectedRhythmDuration(stepSec * randomBetween(0.80, 1.10));
+          const dur2 = clamp(dur2Base, 0.22, 0.52);
           const isLow2 = Tone.Frequency(note2).toMidi() < Tone.Frequency(pack.hi[0]).toMidi();
           const amp2 = isLow2 ? amp*0.78 : amp*0.82;
+          const hitTime2 = Math.max(hitTime + randomBetween(0.01, 0.03), Tone.now() + 0.001);
 
-          sparkle.triggerAttackRelease(note,  durSec, time,        amp);
-          sparkle.triggerAttackRelease(note2, dur2,  time + 0.02,  amp2);
-        } else {
-          sparkle.triggerAttackRelease(note, durSec, time, amp);
+          if (acquireRhythmVoice(hitTime2, dur2)){
+            sparkle.triggerAttackRelease(note2, dur2, hitTime2, amp2);
+          }
         }
       }
     }, sparkleInterval).start(0);
@@ -1792,6 +1807,7 @@ return clamp(sec, 0.28, 2.80);
       clearHarmonyScheduler();
     clearCajonScheduler();
     clearGamelanScheduler();
+    clearRhythmVoiceTimers();
 
     if (sparkleLoop) { sparkleLoop.stop(); sparkleLoop.dispose(); sparkleLoop = null; }
     if (birdLoop)    { birdLoop.stop(); birdLoop.dispose(); birdLoop = null; }
