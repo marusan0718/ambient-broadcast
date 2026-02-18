@@ -1187,9 +1187,22 @@
     const dayish = (r.time === "morning" || r.time === "day");
     const nightish = (r.time === "night" || r.time === "late");
 
-    const short = ["8t","8n","6n"];
-    const mid   = ["4t","4n","3n"];
-    const long  = ["2n","1m","1m"];
+// note-length pools
+const short = ["16n","12n","8t","8n"];
+const mid   = ["8n","6n","4t","4n"];
+const long  = ["4n","3n","2n","1m"];
+
+let pool = [...short, ...mid, ...mid];
+if (dayish)   pool = [...short, ...mid, ...mid, ...long];
+if (nightish) pool = [...mid, ...long, ...long, ...mid];
+if (r.weatherCat === "rain") pool = [...pool, ...long, "1m"];
+
+const d = choose(pool);
+
+// interval seconds (add gentle jitter, keep safe bounds)
+const sec = Tone.Time(d).toSeconds() * randomBetween(0.92, 1.45);
+return clamp(sec, 0.28, 2.80);
+
 
     let pool = [...short, ...mid, ...mid];
     if (dayish) pool = [...short, ...mid, ...mid, ...long];
@@ -1197,8 +1210,22 @@
     if (r.weatherCat === "rain") pool = [...pool, ...long, "1m"];
 
     const d = choose(pool);
-    const sec = Tone.Time(d).toSeconds() * randomBetween(0.92, 1.45);
-    return clamp(sec, 0.28, 2.80);
+// note-length pools
+const short = ["16n","12n","8t","8n"];
+const mid   = ["8n","6n","4t","4n"];
+const long  = ["4n","3n","2n","1m"];
+
+let pool = [...short, ...mid, ...mid];
+if (dayish)   pool = [...short, ...mid, ...mid, ...long];
+if (nightish) pool = [...mid, ...long, ...long, ...mid];
+if (r.weatherCat === "rain") pool = [...pool, ...long, "1m"];
+
+const d = choose(pool);
+
+// interval seconds (add gentle jitter, keep safe bounds)
+const sec = Tone.Time(d).toSeconds() * randomBetween(0.92, 1.45);
+return clamp(sec, 0.28, 2.80);
+
   }
 
   function applyHitPan(time, r){
