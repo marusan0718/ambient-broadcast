@@ -573,8 +573,11 @@
   let sparkleRhythmReverb = null;
   let sparkleFxSend = null, sparkleFxHP = null, sparkleFxDelay = null, sparkleFxVerb = null, sparkleFxGain = null;
 
-  let sparkleLoop, birdLoop, windLoop, waterLoop;
+  let sparkleLoop, melodyLoop, birdLoop, windLoop, waterLoop;
   let chordEventId = null;
+
+  let melody = null;
+  let melodySend = null, melodyDelay = null, melodyVerb = null;
 
   // cajon
   let cajonBody = null;
@@ -689,6 +692,22 @@
       envelope: { attack: 0.004, decay: 0.30, sustain: 0.0, release: 0.12 }
     });
     sparkle.volume.value = -12;
+
+    melody = new Tone.FMSynth({
+      harmonicity: 2.2,
+      modulationIndex: 6,
+      oscillator: { type: "sine" },
+      modulation: { type: "triangle" },
+      envelope: { attack: 0.02, decay: 0.6, sustain: 0.18, release: 2.8 },
+      modulationEnvelope: { attack: 0.01, decay: 0.20, sustain: 0.0, release: 0.5 }
+    });
+    melody.volume.value = -20;
+    melodySend = new Tone.Gain(0.42);
+    melodyDelay = new Tone.PingPongDelay({ delayTime: "8t", feedback: 0.24, wet: 0.18 });
+    melodyVerb = new Tone.Reverb({ decay: 8.5, preDelay: 0.03, wet: 0.34 });
+    melody.connect(filter);
+    melody.connect(melodySend);
+    melodySend.chain(melodyDelay, melodyVerb, filter);
 
     birdTremolo = new Tone.Tremolo({ frequency: 9, depth: 0.65, wet: 1.0 }).start();
     birdFilter = new Tone.Filter({ type: "bandpass", frequency: 2300, Q: 6 });
@@ -922,6 +941,19 @@
       sparkleFxDelay.feedback.value = clamp(fb, 0.10, 0.30);
       sparkleFxVerb.wet.value = clamp(verbWet, 0.12, 0.32);
       sparkleFxHP.frequency.value = clamp(hp, 180, 420);
+    }
+
+    if (melodySend && melodyDelay && melodyVerb && melody){
+      let mSend = 0.42, mDelayWet = 0.18, mDelayFb = 0.24, mVerbWet = 0.34;
+      if (env.time === "day" || env.time === "morning") { mSend = 0.36; mDelayWet = 0.14; mVerbWet = 0.30; }
+      if (env.time === "night" || env.time === "late") { mSend = 0.48; mDelayWet = 0.22; mVerbWet = 0.40; }
+      if (env.weatherCat === "rain") { mDelayWet += 0.02; mVerbWet += 0.04; mDelayFb += 0.03; }
+      melody.volume.value = (env.time === "late") ? -24 : (env.time === "night" ? -22 : -20);
+      melodySend.gain.value = clamp(mSend, 0.26, 0.60);
+      melodyDelay.wet.value = clamp(mDelayWet, 0.10, 0.32);
+      melodyDelay.feedback.value = clamp(mDelayFb, 0.16, 0.40);
+      melodyVerb.wet.value = clamp(mVerbWet, 0.22, 0.52);
+      melodyVerb.decay = clamp((env.time === "late" ? 10.5 : 8.5) + (env.weatherCat === "rain" ? 1.2 : 0), 6.0, 14.0);
     }
 
     if (windFilter){
@@ -1255,6 +1287,23 @@
     return clamp(sec, 0.28, 2.80);
   }
 
+  function melodyNoteFromScale(scale, r){
+    const high = scale.filter(n => Tone.Frequency(n).toMidi() >= 76);
+    const src = high.length ? high : scale;
+    let n = choose(src);
+    if (r.weatherCat === "clear" && Math.random() < 0.45){
+      n = Tone.Frequency(n).transpose(12).toNote();
+    }
+    return n;
+  }
+
+  function melodyDurationSeconds(r){
+    const vals = (r.time === "night" || r.time === "late")
+      ? ["4n", "3n", "2n"]
+      : ["8n", "6n", "4n", "3n"];
+    return clamp(Tone.Time(choose(vals)).toSeconds() * randomBetween(0.85, 1.25), 0.24, 1.6);
+  }
+
   function applyHitPan(time, r){
     if (!sparkleHitPanner) return;
 
@@ -1539,6 +1588,7 @@
     Tone.Transport.cancel(0);
 
     if (sparkleLoop) { sparkleLoop.dispose(); sparkleLoop = null; }
+    if (melodyLoop) { melodyLoop.dispose(); melodyLoop = null; }
     if (birdLoop) { birdLoop.dispose(); birdLoop = null; }
     if (windLoop) { windLoop.dispose(); windLoop = null; }
     if (waterLoop) { waterLoop.dispose(); waterLoop = null; }
@@ -1614,6 +1664,31 @@
         }
       }
     }, sparkleInterval).start(0);
+
+    melodyLoop = new Tone.Loop((time) => {
+      if (!melody) return;
+      const scale = sparkleScale(r.key, r.weatherCat, r.time);
+      let pMel = 0.30;
+      if (r.time === "morning") pMel = 0.34;
+      if (r.time === "day") pMel = 0.38;
+      if (r.time === "evening") pMel = 0.32;
+      if (r.time === "night") pMel = 0.22;
+      if (r.time === "late") pMel = 0.16;
+      if (r.weatherCat === "rain") pMel *= 0.88;
+
+      if (Math.random() < pMel){
+        const note = melodyNoteFromScale(scale, r);
+        const dur = melodyDurationSeconds(r);
+        const vel = (r.time === "late") ? 0.22 : (0.24 + Math.random() * 0.16);
+        melody.triggerAttackRelease(note, dur, time + randomBetween(0.0, 0.02), vel);
+
+        if (Math.random() < 0.28){
+          const note2 = Tone.Frequency(note).transpose(choose([3,5,7,12])).toNote();
+          const dur2 = clamp(dur * randomBetween(0.65, 1.0), 0.18, 1.2);
+          melody.triggerAttackRelease(note2, dur2, time + randomBetween(0.08, 0.20), vel * 0.72);
+        }
+      }
+    }, 0.78).start(0);
 
     function autoBirdChance(r){
       let base = 0.08;
@@ -1830,6 +1905,7 @@
     clearRhythmVoiceTimers();
 
     if (sparkleLoop) { sparkleLoop.stop(); sparkleLoop.dispose(); sparkleLoop = null; }
+    if (melodyLoop)  { melodyLoop.stop(); melodyLoop.dispose(); melodyLoop = null; }
     if (birdLoop)    { birdLoop.stop(); birdLoop.dispose(); birdLoop = null; }
     if (windLoop)    { windLoop.stop(); windLoop.dispose(); windLoop = null; }
     if (waterLoop)   { waterLoop.stop(); waterLoop.dispose(); waterLoop = null; }
