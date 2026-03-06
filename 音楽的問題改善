@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ambient Music</title>
+
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/15.3.5/Tone.js"></script>
+
+  <style>
+    summary::-webkit-details-marker { display:none; }
+    .ios-scroll { -webkit-overflow-scrolling: touch; }
+    .glass {
+      background: rgba(255,255,255,.72);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    input[type="range"]{ accent-color:#0f172a; }
+    .subtitle-fit{
+      font-size: clamp(12px, 3.3vw, 14px);
+      line-height: 1.7;
+      letter-spacing: -0.015em;
+      white-space: pre-line;
+      word-break: keep-all;
+      overflow-wrap: normal;
+    }
+    .guide-reveal{
+      opacity: 0;
+      transform: translateY(11px);
+      transition: opacity 820ms cubic-bezier(0.22, 1, 0.36, 1), transform 820ms cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: opacity, transform;
+    }
+    .guide-reveal.is-visible{
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .museum-type{
+      font-family: "Hiragino Mincho ProN","Yu Mincho","Noto Serif JP","HGS明朝E",serif;
+      color: rgb(30 41 59);
+    }
+    .guide-caption{
+      max-width: none;
+      width: 100%;
+      margin-inline: auto;
+      color: rgb(30 41 59);
+      font-size: clamp(13px, 1.2vw, 14px);
+      line-height: 2.08;
+      font-family: "Hiragino Mincho ProN","Yu Mincho","Noto Serif JP","HGS明朝E",serif;
+      font-weight: 400;
+      position: relative;
+      background: #fff;
+      padding: 0;
+      border: 0 !important;
+      outline: 0;
+      box-shadow: none !important;
+      isolation: isolate;
+    }
+    .guide-caption-title{
+      font-size: clamp(13px, 1.2vw, 14px);
+      letter-spacing: 0;
+      color: rgb(30 41 59);
+      font-weight: 400;
+      margin-top: 0;
+      margin-bottom: 0;
+    }
+    .rippleHint{position:relative;overflow:visible;background:#fff;}
+    .rippleHint::before,
+    .rippleHint::after{
+      content:"";
+      position:absolute;
+      pointer-events:none;
+      z-index:0;
+      width:340px;
+      height:260px;
+      filter: blur(0.6px);
+      opacity:0.16;
+      background: radial-gradient(closest-side, rgba(148,163,184,0.16), rgba(255,255,255,0));
+      animation: watercolorBreath 32s ease-in-out infinite;
+    }
+    .rippleHint::before{left:-96px;top:-84px;}
+    .rippleHint::after{right:-88px;bottom:-82px;background: radial-gradient(closest-side, rgba(134,190,174,0.15), rgba(255,255,255,0));animation-delay:-11s;}
+    @keyframes watercolorBreath{
+      0%,100%{transform:translate(0,0) scale(1);opacity:0.12;}
+      50%{transform:translate(1px,-1px) scale(1.02);opacity:0.18;}
+    }
+    .rippleHint > *{position:relative;z-index:1;}
+    .caption-line{margin:0;}
+    .caption-line + .caption-line{
+      margin-top: 24px;
+    }
+
+    .guide-pages{
+      height: min(68vh, 520px);
+      overflow-y: auto;
+      scroll-snap-type: y mandatory;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      position: relative;
+      background: #fff;
+      padding-inline: 18px;
+      box-sizing: border-box;
+    }
+    .guide-pages::-webkit-scrollbar{display:none;}
+    .guide-page{
+      min-height: 62vh;
+      position: relative;
+      z-index: 1;
+      scroll-snap-align: start;
+      display: grid;
+      align-content: start;
+      justify-items: center;
+      padding: 11.5vh 0 8vh;
+      box-sizing: border-box;
+      background: #fff;
+      border:0;
+      box-shadow:none;
+      outline:0;
+      overflow:hidden;
+      opacity:1;
+      transform: translateY(0);
+      transition: none;
+    }
+    .guide-page.is-current{opacity:1;transform:translateY(0);}
+    .guide-page-text{opacity:0;transform:translateY(8px);}
+    .guide-page.is-current .guide-page-text{animation: captionReveal 10s cubic-bezier(0.16,1,0.3,1) forwards;}
+    @keyframes captionReveal{
+      0%{opacity:0;transform:translateY(8px);}
+      8%{opacity:0.25;transform:translateY(6px);}
+      100%{opacity:1;transform:translateY(0);}
+    }
+
+    .guide-page::before,.guide-page::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;filter: blur(0.6px);}
+    .guide-page[data-slide="0"]{background:#fff;}
+    .guide-page[data-slide="0"]::before{background:radial-gradient(320px 230px at 14% 18%, rgba(148,163,184,0.24), rgba(255,255,255,0));opacity:.24;}
+    .guide-page[data-slide="0"]::after{background:radial-gradient(300px 220px at 86% 84%, rgba(148,163,184,0.18), rgba(255,255,255,0));opacity:.18;}
+
+    .guide-page[data-slide="1"]{background:#fff;}
+    .guide-page[data-slide="1"]::before{background:radial-gradient(320px 230px at 14% 14%, rgba(134,190,174,0.24), rgba(255,255,255,0));opacity:.24;}
+    .guide-page[data-slide="1"]::after{background:radial-gradient(280px 210px at 88% 82%, rgba(148,163,184,0.16), rgba(255,255,255,0));opacity:.16;}
+
+    .guide-page[data-slide="2"]{background:#fff;}
+    .guide-page[data-slide="2"]::before{background:radial-gradient(320px 230px at 84% 14%, rgba(125,211,252,0.24), rgba(255,255,255,0));opacity:.24;}
+    .guide-page[data-slide="2"]::after{background:radial-gradient(260px 190px at 12% 84%, rgba(148,163,184,0.16), rgba(255,255,255,0));opacity:.16;}
+
+    .guide-page[data-slide="3"]{background:#fff;}
+    .guide-page[data-slide="3"]::before{background:radial-gradient(320px 230px at 12% 84%, rgba(250,204,21,0.23), rgba(255,255,255,0));opacity:.23;}
+    .guide-page[data-slide="3"]::after{background:radial-gradient(260px 190px at 84% 16%, rgba(148,163,184,0.16), rgba(255,255,255,0));opacity:.16;}
+
+    .guide-page[data-slide="4"]{background:#fff;}
+    .guide-page[data-slide="4"]::before{background:radial-gradient(320px 230px at 86% 84%, rgba(125,211,252,0.22), rgba(255,255,255,0));opacity:.22;}
+    .guide-page[data-slide="4"]::after{background:radial-gradient(280px 200px at 14% 16%, rgba(250,204,21,0.20), rgba(255,255,255,0));opacity:.20;}
+
+    .guide-page[data-slide="5"]{background:#fff;}
+    .guide-page[data-slide="5"]::before{background:radial-gradient(320px 230px at 14% 16%, rgba(148,163,184,0.24), rgba(255,255,255,0));opacity:.24;}
+    .guide-page[data-slide="5"]::after{background:radial-gradient(260px 190px at 88% 84%, rgba(148,163,184,0.16), rgba(255,255,255,0));opacity:.16;}
+
+    #guideTransitionLayer{position:absolute;inset:0;pointer-events:none;opacity:0;transform:scale(1);filter:blur(0);z-index:70;background:
+      radial-gradient(240px 170px at 84% 18%, rgba(148,163,184,0.42), rgba(255,255,255,0) 62%),
+      radial-gradient(260px 180px at 16% 84%, rgba(163,176,196,0.40), rgba(255,255,255,0) 66%),
+      radial-gradient(220px 160px at 78% 86%, rgba(120,138,156,0.36), rgba(255,255,255,0) 64%),
+      radial-gradient(220px 160px at 22% 22%, rgba(176,190,207,0.34), rgba(255,255,255,0) 64%), #fff;transition:opacity 2200ms cubic-bezier(0.16,1,0.3,1),transform 2200ms cubic-bezier(0.16,1,0.3,1),filter 2200ms cubic-bezier(0.16,1,0.3,1);}
+    #guideTransitionLayer.is-active{opacity:1;transform:scale(1.04);filter:blur(14px);}
+
+    .guide-page[data-slide="6"]{
+      background:
+        radial-gradient(210px 150px at 84% 18%, rgba(148,163,184,0.44), rgba(255,255,255,0) 62%),
+        radial-gradient(230px 160px at 16% 84%, rgba(163,176,196,0.40), rgba(255,255,255,0) 64%),
+        radial-gradient(180px 130px at 78% 86%, rgba(120,138,156,0.38), rgba(255,255,255,0) 64%),
+        radial-gradient(200px 140px at 22% 22%, rgba(176,190,207,0.34), rgba(255,255,255,0) 62%),
+        #fff;
+    }
+    .guide-page[data-slide="6"]::before,.guide-page[data-slide="6"]::after{background:none;}
+    .guide-page-text{
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      line-height: 1.45;
+      width: min(100%, 548px);
+      box-sizing: border-box;
+      padding-left: 24px;
+      margin-left: -12px;
+      color: rgb(30 41 59);
+      font-size: clamp(13px, 1.2vw, 14px);
+      font-weight: 400;
+    }
+    .guide-page-text + .guide-page-text{margin-top: 10px;}
+    .guide-page-text{white-space: pre-line;word-break: keep-all;overflow-wrap: anywhere;}
+    .guide-indicator{
+      margin-top: 4px;
+      display:flex;
+      justify-content:center;
+      gap:8px;
+    }
+    .guide-dot{
+      width: 5px;
+      height: 5px;
+      border-radius: 9999px;
+      background: rgba(30,41,59,0.24);
+      transition: background 320ms ease, transform 320ms ease, opacity 320ms ease;
+      opacity: 0.34;
+    }
+    .guide-dot.is-active{background: rgba(30,41,59,0.62);opacity:0.82;transform: scale(1.18);animation: guideDotBreath 14s ease-in-out infinite;}
+    @keyframes guideDotBreath{
+      0%,100%{opacity:0.55;}
+      50%{opacity:0.85;}
+    }
+    .guide-overlay-fade{opacity:0;transform:translateY(8px);transition:opacity 2200ms cubic-bezier(0.16, 1, 0.3, 1), transform 2200ms cubic-bezier(0.16, 1, 0.3, 1);}
+
+    #settingsOverlay{opacity:0;pointer-events:none;transition:opacity 560ms cubic-bezier(0.16, 1, 0.3, 1);}
+    #settingsOverlay.is-open{opacity:1;pointer-events:auto;}
+    #settingsOverlay .settings-shell{opacity:0;transform:translateY(6px);transition:opacity 560ms cubic-bezier(0.16, 1, 0.3, 1), transform 560ms cubic-bezier(0.16, 1, 0.3, 1);}
+    #settingsOverlay.is-open .settings-shell{opacity:1;transform:translateY(0);}
+    @media (prefers-reduced-motion: reduce){
+      .guide-reveal, .guide-reveal.is-visible{
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
+      .rippleHint::before,.rippleHint::after,.guide-dot.is-active{animation:none !important;}
+      .guide-page-text{opacity:1 !important;transform:none !important;transition:none !important;animation:none !important;}
+      #settingsOverlay,#settingsOverlay .settings-shell,.guide-overlay-fade,#guideTransitionLayer{transition:none !important;transform:none !important;filter:none !important;}
+    }
+  </style>
+</head>
+
+<body class="min-h-screen text-slate-900">
+  <main class="min-h-screen flex items-center justify-center p-4 sm:p-8">
+    <section class="w-full max-w-xl">
+      <div class="rounded-[32px] border border-slate-200/70 bg-white backdrop-blur-md shadow-[0_16px_46px_rgba(15,23,42,0.07)] overflow-hidden">
+        <div class="px-5 sm:px-8 pt-7 pb-6">
+          <div class="flex items-start justify-between gap-3">
+            <h1 class="museum-type text-xl sm:text-2xl font-semibold tracking-tight">Ambient Music</h1>
+            <div class="text-right whitespace-nowrap shrink-0">
+              <div class="text-xs tabular-nums text-slate-500">次回更新 <span id="countdown" class="font-semibold text-slate-800">—</span></div>
+            </div>
+          </div>
+          <p class="subtitle-fit mt-2 text-slate-500">季節、天気、風のゆらぎ。
+この瞬間の自然と呼吸を合わせ、音は静かに生まれていく。</p>
+
+          <button id="btnToggle" class="mt-7 w-full rounded-[30px] px-6 py-8 transition active:scale-[0.99] bg-slate-900 text-white hover:bg-slate-800 shadow-[0_18px_40px_rgba(15,23,42,0.20)] relative overflow-hidden">
+            <div class="flex items-center justify-center gap-4">
+              <div class="grid place-items-center size-14 rounded-2xl bg-white/10 border border-white/20">
+                <svg id="iconSvg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="opacity-95"><path d="M8 5v14l11-7z"></path></svg>
+              </div>
+              <div class="text-left">
+                <div id="btnLabel" class="text-2xl font-semibold">Start</div>
+                <div id="btnSub" class="text-xs text-white/80">タップで再生</div>
+              </div>
+            </div>
+          </button>
+
+          <div class="mt-5 rounded-2xl border border-slate-200/50 bg-white px-4 py-3 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
+            <div class="text-xs text-slate-500">現在の状態</div>
+            <div id="statusMain" class="mt-1 text-base font-medium text-slate-800">夜の澄んだ空気、きらめき控えめ。</div>
+            <div id="statusSub" class="hidden">—</div>
+            <div id="statusChip" class="hidden">—</div>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-200/70 bg-[#fbfbfa]">
+          <div class="px-6 sm:px-8 py-4 flex items-center justify-between gap-2">
+            <button id="btnRefresh" class="px-4 py-2 rounded-2xl text-sm bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 active:scale-[0.99]">更新</button>
+            <details id="settingsDetails" class="group">
+              <summary class="list-none cursor-pointer select-none px-4 py-2 rounded-2xl text-sm bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 inline-flex items-center gap-2">
+                詳細
+                <span class="text-slate-400 group-open:rotate-180 transition">▾</span>
+              </summary>
+            </details>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="settingsOverlay" class="fixed inset-0 z-50 hidden">
+    <div id="guideTransitionLayer" aria-hidden="true"></div>
+    <div id="settingsBackdrop" class="absolute inset-0 bg-slate-900/10 backdrop-blur-[2px]"></div>
+    <div class="settings-shell absolute inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6">
+      <div class="w-full max-w-[760px] rounded-[30px] bg-white border border-slate-200/80 shadow-[0_20px_48px_rgba(15,23,42,0.12)] overflow-hidden">
+        <div class="px-5 sm:px-6 pt-4 pb-3 border-b border-slate-200">
+          <div class="flex items-center justify-between gap-3">
+            <div class="text-sm font-semibold text-slate-800">詳細</div>
+            <div class="flex items-center gap-2">
+              <button id="btnAllAuto" class="hidden px-3 py-1.5 rounded-xl text-xs border border-slate-200 bg-white hover:bg-slate-50">All Auto</button>
+              <button id="btnCloseSettings" class="px-3 py-1.5 rounded-xl text-sm bg-slate-900 text-white hover:bg-slate-800">閉じる</button>
+            </div>
+          </div>
+          <div class="mt-3 flex gap-2">
+            <button data-tab="tabSettings" class="tabBtn flex-1 px-3 py-2 rounded-2xl text-sm border border-slate-200 bg-sky-50/60 text-slate-700">手動調整</button>
+            <button data-tab="tabGuide" class="tabBtn flex-1 px-3 py-2 rounded-2xl text-sm border border-slate-200 bg-white text-slate-700 hover:bg-slate-50">音の設計思想</button>
+          </div>
+        </div>
+
+        <div class="px-5 sm:px-6 py-4 max-h-[74vh] overflow-y-auto ios-scroll">
+          <section id="tabSettings" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3"><div class="text-slate-500">季節</div><div id="envSeason" class="mt-1 text-sm font-medium text-slate-800">Auto</div></div>
+              <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3"><div class="text-slate-500">時間</div><div id="envTime" class="mt-1 text-sm font-medium text-slate-800">Auto</div></div>
+              <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3"><div class="text-slate-500">天気</div><div id="envWeather" class="mt-1 text-sm font-medium text-slate-800">Auto</div></div>
+              <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3"><div class="text-slate-500">風 / UV</div><div id="envWindUv" class="mt-1 text-sm font-medium text-slate-800">—</div></div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-4">
+              <div class="text-sm font-semibold text-slate-800">現在の音楽</div>
+              <div class="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-2"><div class="text-[10px] text-slate-500">Key</div><div id="metricKey" class="text-sm font-medium text-slate-800 mt-1">—</div></div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-2"><div class="text-[10px] text-slate-500">Tempo</div><div id="metricTempo" class="text-sm font-medium text-slate-800 mt-1">—</div></div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-2"><div class="text-[10px] text-slate-500">Brightness</div><div id="metricBrightness" class="text-sm font-medium text-slate-800 mt-1">—</div></div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-2"><div class="text-[10px] text-slate-500">Sparkle</div><div id="metricSparkle" class="text-sm font-medium text-slate-800 mt-1">—</div></div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-2"><div class="text-[10px] text-slate-500">Reverb</div><div id="metricReverb" class="text-sm font-medium text-slate-800 mt-1">—</div></div>
+              </div>
+              <div id="envModeBadge" class="hidden" aria-hidden="true"></div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div><div class="text-xs text-slate-500 mb-1">季節</div><select id="seasonSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="auto">Auto</option><option value="spring">春</option><option value="summer">夏</option><option value="autumn">秋</option><option value="winter">冬</option></select></div>
+              <div><div class="text-xs text-slate-500 mb-1">時間</div><select id="timeSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="auto">Auto</option><option value="morning">朝</option><option value="day">昼</option><option value="evening">夕</option><option value="night">夜</option><option value="late">深夜</option></select></div>
+              <div><div class="text-xs text-slate-500 mb-1">天気</div><select id="weatherSel" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="auto">Auto</option><option value="clear">晴れ</option><option value="other">曇り</option><option value="rain">雨</option></select></div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-4">
+              <div class="text-sm font-semibold text-slate-800">自然音</div>
+              <div class="mt-3 space-y-4">
+                <div><div class="flex items-center justify-between"><div class="text-xs text-slate-500">鳥</div><div id="birdVal" class="text-xs font-medium text-slate-700">50</div></div><input id="birdMix" type="range" min="0" max="100" step="1" class="w-full" /></div>
+                <div><div class="flex items-center justify-between"><div class="text-xs text-slate-500">風</div><div id="windVal" class="text-xs font-medium text-slate-700">50</div></div><input id="windMix" type="range" min="0" max="100" step="1" class="w-full" /></div>
+                <div><div class="flex items-center justify-between"><div class="text-xs text-slate-500">水</div><div id="waterVal" class="text-xs font-medium text-slate-700">50</div></div><input id="waterMix" type="range" min="0" max="100" step="1" class="w-full" /></div>
+              </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-4">
+              <div class="text-sm font-semibold text-slate-800">音楽ニュアンス</div>
+              <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><div class="flex items-center justify-between"><div class="text-xs text-slate-500">きらめき</div><span id="nuanceSparkleMode" class="text-[10px] px-2 py-0.5 rounded-full border border-slate-200">Auto</span></div><input id="nuanceSparkle" type="range" min="0" max="100" value="50" class="w-full" /></div>
+                <div><div class="flex items-center justify-between"><div class="text-xs text-slate-500">スピード</div><span id="nuanceSpeedMode" class="text-[10px] px-2 py-0.5 rounded-full border border-slate-200">Auto</span></div><input id="nuanceSpeed" type="range" min="0" max="100" value="50" class="w-full" /></div>
+                <div><div class="flex items-center justify-between"><div class="text-xs text-slate-500">明るさ</div><span id="nuanceBrightMode" class="text-[10px] px-2 py-0.5 rounded-full border border-slate-200">Auto</span></div><input id="nuanceBright" type="range" min="0" max="100" value="50" class="w-full" /></div>
+                <div><div class="flex items-center justify-between"><div class="text-xs text-slate-500">余韻</div><span id="nuanceReverbMode" class="text-[10px] px-2 py-0.5 rounded-full border border-slate-200">Auto</span></div><input id="nuanceReverb" type="range" min="0" max="100" value="50" class="w-full" /></div>
+              </div>
+            </div>
+          </section>
+
+          <section id="tabGuide" class="hidden">
+            <div class="guide-caption rippleHint museum-type">
+              <div id="guidePages" class="guide-pages">
+                <article class="guide-page is-current" data-page="1" data-slide="0">
+                  <p class="guide-page-text guide-caption-title">Ambient Music</p>
+                  <p class="guide-page-text guide-caption-title">― 自然と呼吸を合わせる音の設計 ―</p>
+                </article>
+                <article class="guide-page" data-page="2" data-slide="1">
+                  <p class="guide-page-text">季節、時間、天候、風、UV。</p>
+                  <p class="guide-page-text">このアプリは、自然の値をそのまま鳴らす設計ではありません。</p>
+                </article>
+                <article class="guide-page" data-page="3" data-slide="2">
+                  <p class="guide-page-text">受け取った環境データは、いったん整えられます。</p>
+                  <p class="guide-page-text">そして調性、テンポ、明るさ、きらめき、余韻へと翻訳されます。</p>
+                </article>
+                <article class="guide-page" data-page="4" data-slide="3">
+                  <p class="guide-page-text">和音は同一キーの三和音のみ。</p>
+                  <p class="guide-page-text">I / IV / V / vi を中心に、呼吸するように重なります。</p>
+                  <p class="guide-page-text">不安定さを避け、空間に溶ける輪郭を保ちます。</p>
+                </article>
+                <article class="guide-page" data-page="5" data-slide="4">
+                  <p class="guide-page-text">晴れた昼は、わずかに明るく。</p>
+                  <p class="guide-page-text">雨の夜は、余韻が静かに深く。</p>
+                  <p class="guide-page-text">風が強い日は、きらめきが少しだけ揺れます。</p>
+                </article>
+                <article class="guide-page" data-page="6" data-slide="5">
+                  <p class="guide-page-text">変化は控えめです。</p>
+                  <p class="guide-page-text">けれど確実に、いまの空気をまといます。</p>
+                </article>
+                <article class="guide-page" data-page="7" data-slide="6">
+                  <p class="guide-page-text">同じ音は二度と鳴らない。</p>
+                  <p class="guide-page-text">再生するたび、</p>
+                  <p class="guide-page-text">この瞬間の自然が、音になります。</p>
+                </article>
+              </div>
+
+              <div id="guideIndicator" class="guide-indicator" aria-hidden="true">
+                <span class="guide-dot is-active"></span>
+                <span class="guide-dot"></span>
+                <span class="guide-dot"></span>
+                <span class="guide-dot"></span>
+                <span class="guide-dot"></span>
+                <span class="guide-dot"></span>
+                <span class="guide-dot"></span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
+const AUTO_UPDATE_MS = 5 * 60 * 1000;
+let nextUpdateAt = Date.now() + AUTO_UPDATE_MS;
+let isRefreshingWeather = false;
+const WEATHER_RETRY_MS = 60 * 1000;
+function describeWeather(code){if(code===0)return"快晴";if([1,2].includes(code))return"晴れ/薄曇り";if(code===3)return"くもり";if([45,48].includes(code))return"霧";if([51,53,55,56,57].includes(code))return"霧雨";if([61,63,65,66,67].includes(code))return"雨";if([71,73,75,77].includes(code))return"雪";if([80,81,82].includes(code))return"にわか雨";if([95,96,99].includes(code))return"雷雨";return"不明";}
+function weatherCategoryFromCode(code){if(code===0||[1,2].includes(code))return"clear";if([61,63,65,66,67,80,81,82,51,53,55,56,57,95,96,99].includes(code))return"rain";return"other";}
+async function fetchWeatherByCoords(lat,lon){const url=new URL(OPEN_METEO_URL);url.searchParams.set("latitude",lat);url.searchParams.set("longitude",lon);url.searchParams.set("current","weather_code,wind_speed_10m");url.searchParams.set("daily","uv_index_max");url.searchParams.set("timezone","auto");const res=await fetch(url.toString());if(!res.ok)throw new Error("天気取得に失敗しました");const data=await res.json();const code=data?.current?.weather_code;const wind=data?.current?.wind_speed_10m;const uvArr=data?.daily?.uv_index_max;const uv=Array.isArray(uvArr)?uvArr[0]:null;if(typeof code!=="number"||typeof wind!=="number")throw new Error("天気データ形式が想定と違います");return {code,wind,uv:(typeof uv==="number"?uv:null)};}
+function getCurrentPosition(){return new Promise((resolve,reject)=>{if(!navigator.geolocation)return reject(new Error("このブラウザは位置情報に対応していません"));navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:false,timeout:8000,maximumAge:60_000});});}
+let wakeLock=null; async function requestWakeLock(){try{if(!("wakeLock" in navigator))return;wakeLock=await navigator.wakeLock.request("screen");wakeLock.addEventListener("release",()=>{wakeLock=null;});}catch(e){}} async function releaseWakeLock(){try{if(wakeLock)await wakeLock.release();}catch(e){}wakeLock=null;}
+
+// ─── STABILITY: runtime guards ───────────────────────────────────────────────
+let lastSoundAt = Date.now();
+let audioRecoveryInFlight = false;
+let lastRecoveryAttemptAt = 0;
+let lastRebuildAttemptAt = 0;
+let lastHardRecoveryAt = 0;
+const RECOVERY_COOLDOWN_MS = 4000;
+const REBUILD_COOLDOWN_MS = 20000;
+const HARD_RECOVERY_COOLDOWN_MS = 120000;
+
+// FIX #7: layer-level sound trackers — all sound triggers must call markLayerSound
+function markSoundActivity(){ lastSoundAt = Date.now(); }
+const layerLastSoundAt = {sparkle:Date.now(),bird:Date.now(),wind:Date.now(),water:Date.now(),melody:Date.now(),pad:Date.now(),harmony:Date.now()};
+const layerLastRecoveryAt = {sparkle:0,bird:0,wind:0,water:0,melody:0,pad:0,harmony:0};
+const LAYER_SILENCE_MS = {sparkle:35000,bird:45000,wind:60000,water:60000,melody:50000,pad:90000,harmony:90000};
+const LAYER_RECOVERY_COOLDOWN_MS = 120000;
+let lastAnyLayerRecoveryAt = 0;
+const GLOBAL_LAYER_RECOVERY_COOLDOWN_MS = 60000;
+let isRecovering = false;
+
+function markLayerSound(layer){ const now=Date.now(); layerLastSoundAt[layer]=now; lastSoundAt=now; }
+
+// FIX #7: unified wrappers — always marks activity for all trigger types
+function trackedTriggerAttackRelease(target,...args){ markSoundActivity(); return target.triggerAttackRelease(...args); }
+function trackedTriggerAttackReleaseLayer(layer,target,...args){ markLayerSound(layer); return target.triggerAttackRelease(...args); }
+// FIX #7: wrapper for triggerAttack (bellSynth etc.) — was missing markSoundActivity
+function trackedTriggerAttack(layer,target,...args){ markLayerSound(layer); return target.triggerAttack(...args); }
+
+// ─── Audio resume ─────────────────────────────────────────────────────────────
+async function resumeAudioIfNeeded(reason="unknown"){
+  try{
+    if(audioRecoveryInFlight)return false;
+    const now=Date.now();
+    if(now-lastRecoveryAttemptAt<RECOVERY_COOLDOWN_MS)return false;
+    audioRecoveryInFlight=true;
+    lastRecoveryAttemptAt=now;
+    const ctx=Tone.getContext?.().rawContext||Tone.context?.rawContext||Tone.context;
+    const state=ctx?.state;
+    if(state&&state!=="running"){
+      try{await Tone.start();}catch(e){}
+      try{await ctx.resume();}catch(e){}
+    }
+    if(isRunning&&Tone.Transport.state!=="started"){
+      try{Tone.Transport.start();}catch(e){}
+    }
+    return true;
+  }catch(e){
+    return false;
+  }finally{
+    audioRecoveryInFlight=false;
+  }
+}
+
+document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"&&isRunning){await resumeAudioIfNeeded("visibilitychange");await requestWakeLock();}});
+window.addEventListener("pageshow",async()=>{if(isRunning){await resumeAudioIfNeeded("pageshow");}});
+window.addEventListener("focus",async()=>{if(isRunning){await resumeAudioIfNeeded("focus");}});
+
+// FIX #2: safeLoopCallback now catches errors without allowing them to leak isRecovering
+function safeLoopCallback(name,fn){return (time)=>{try{fn(time);}catch(e){console.warn(`[${name}] loop callback error`,e);}};}
+
+const MIX_KEY="ambientMix_v1"; const mixState={bird:50,wind:50,water:50};
+function clamp(n,min,max){return Math.max(min,Math.min(max,n));} function randomBetween(min,max){return min+Math.random()*(max-min);} function randInt(min,max){return Math.floor(min+Math.random()*(max-min+1));} function choose(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function loadMix(){try{const raw=localStorage.getItem(MIX_KEY);if(!raw)return;const obj=JSON.parse(raw);if(typeof obj?.bird==="number")mixState.bird=clamp(Math.round(obj.bird),0,100);if(typeof obj?.wind==="number")mixState.wind=clamp(Math.round(obj.wind),0,100);if(typeof obj?.water==="number")mixState.water=clamp(Math.round(obj.water),0,100);}catch(e){}}
+function saveMix(){try{localStorage.setItem(MIX_KEY,JSON.stringify(mixState));}catch(e){}}
+function mixMultiplierFromPercent(p){const x=clamp(p,0,100)/50;return clamp(x,0,2.0);} function getMix(){return {birdMul:mixMultiplierFromPercent(mixState.bird),windMul:mixMultiplierFromPercent(mixState.wind),waterMul:mixMultiplierFromPercent(mixState.water),birdPct:mixState.bird,windPct:mixState.wind,waterPct:mixState.water};}
+function syncMixUI(){const b=document.getElementById("birdMix"),w=document.getElementById("windMix"),wa=document.getElementById("waterMix"),bv=document.getElementById("birdVal"),wv=document.getElementById("windVal"),wav=document.getElementById("waterVal");if(!b||!w||!wa||!bv||!wv||!wav)return;b.value=String(mixState.bird);w.value=String(mixState.wind);wa.value=String(mixState.water);bv.textContent=String(mixState.bird);wv.textContent=String(mixState.wind);wav.textContent=String(mixState.water);} function onMixChange(){syncMixUI();saveMix();if(isRunning){const r=applyParams();const now=Tone.now();if(windGain)windGain.gain.setValueAtTime(Math.max(0.000001,windBaseLevel(r)),now);if(waterGain)waterGain.gain.setValueAtTime(Math.max(0.000001,waterBaseLevel(r)),now);}}
+function autoTimeBlock(){const h=new Date().getHours();if(h>=5&&h<10)return"morning";if(h>=10&&h<16)return"day";if(h>=16&&h<19)return"evening";if(h>=19&&h<24)return"night";return"late";} function autoSeason(){const m=new Date().getMonth()+1;if(m>=3&&m<=5)return"spring";if(m>=6&&m<=8)return"summer";if(m>=9&&m<=11)return"autumn";return"winter";}
+function setStatus(main,sub="—"){const a=document.getElementById("statusMain"),b=document.getElementById("statusSub");if(!a||!b)return;a.textContent=(sub&&sub!=="—")?sub:main;b.textContent="";} function setStatusChip(text="—"){const el=document.getElementById("statusChip");if(el)el.textContent=text;}
+function applyWhiteByTime(time){const map={morning:["from-sky-50","via-white","to-slate-100"],day:["from-white","via-white","to-slate-100"],evening:["from-rose-50","via-stone-50","to-zinc-100"],night:["from-slate-100","via-slate-50","to-slate-200"],late:["from-slate-100","via-slate-50","to-slate-200"]};const [a,b,c]=map[time]||map.day;const cat=weatherCategoryFromCode(lastWeather.code);const uv=(typeof lastWeather.uv==="number")?clamp(lastWeather.uv/11,0,1):0;const rainTint=(cat==="rain")?" saturate-[0.96] brightness-[0.985]":"";const uvTint=(uv>0.55)?" saturate-[1.02]":"";document.body.className=`min-h-screen text-slate-900 bg-gradient-to-b ${a} ${b} ${c}${rainTint}${uvTint}`;}
+function setMediaSessionMetadata(text){if(!("mediaSession" in navigator))return;try{navigator.mediaSession.metadata=new MediaMetadata({title:"Ambient Music",artist:text,album:"Nature Sync"});navigator.mediaSession.setActionHandler("play",async()=>{if(!isRunning)await start();});navigator.mediaSession.setActionHandler("pause",()=>{if(isRunning)stop();});}catch(e){}}
+function updatePlaybackState(){if(!("mediaSession" in navigator))return;try{navigator.mediaSession.playbackState=isRunning?"playing":"paused";}catch(e){}}
+let isRunning=false;
+let playbackWatchdogId=null;
+let lastTransportSeconds=0;
+let lastTransportCheckAt=0;
+let silentRecoveryCount=0;
+let isRebuildingLoops=false;
+let masterReverb, masterComp, masterLimiter;
+let filter, airHighpass, airChorus;
+let sparkle, crystalLead, lowLead, lowDrone, bellSynth, chimeSynth, stringEnsemble, stringPad, padGain; let bird,birdFilter,birdTremolo; let windNoise,windFilter,windGain; let waterNoise,waterFilter,waterGain;
+let sparkleMulti=null,sparkleAutoPanner=null,sparkleHitPanner=null;
+let sparkleLoop,birdLoop,windLoop,waterLoop,melodyLoop,lowMelodyLoop,padLoop,crystalHarmonyLoop,stringHarmonyLoop,lowResonanceLoop,bellLoop,chimeLoop,chordEventId=null;
+
+// FIX #1: store loop callbacks separately so they survive dispose()
+const loopCallbacks = {};
+const loopIntervals = {};
+
+let harmonySlots=null,harmonySlotIndex=0;
+let lastWeather={code:0,wind:0,uv:null}; let lastRoot=null;
+const SEASON_SOUND_PROFILE={spring:{brightness:0.1,padAttack:1.06,shimmer:0.22,calm:0.1},summer:{brightness:0.18,padAttack:0.94,shimmer:0.30,calm:0.02},autumn:{brightness:-0.06,padAttack:1.12,shimmer:0.14,calm:0.18},winter:{brightness:0.05,padAttack:1.16,shimmer:0.26,calm:0.24}};
+const TIME_SOUND_PROFILE={morning:{density:0.08,space:0.08,brightness:0.10},day:{density:0.14,space:0,brightness:0.15},evening:{density:-0.04,space:0.14,brightness:-0.02},night:{density:-0.12,space:0.20,brightness:-0.08},late:{density:-0.18,space:0.28,brightness:-0.12}};
+const WEATHER_SOUND_PROFILE={clear:{brightness:0.20,wet:-0.05,decay:-1.8,reflect:0.22},rain:{brightness:-0.14,wet:0.08,decay:2.2,reflect:-0.10},other:{brightness:0,wet:0,decay:0,reflect:0}};
+
+function ensureAudioGraph(){
+  if(sparkle)return;
+  masterReverb=new Tone.Reverb({decay:14.5,wet:0.42}).toDestination();
+  masterComp=new Tone.Compressor({threshold:-20,ratio:2.8,attack:0.008,release:0.24}).connect(masterReverb);
+  masterLimiter=new Tone.Limiter(-0.6).connect(masterComp);
+  airChorus=new Tone.Chorus({frequency:0.18,delayTime:3.2,depth:0.12,spread:120,wet:0.16}).start();
+  airHighpass=new Tone.Filter({type:"highpass",frequency:90,rolloff:-12}).connect(airChorus);
+  filter=new Tone.Filter({type:"lowpass",frequency:1900,rolloff:-12}).connect(airHighpass);
+  airChorus.connect(masterLimiter);
+  sparkleAutoPanner=new Tone.AutoPanner({frequency:0.10,depth:0.85,wet:1.0}).start();
+  sparkleHitPanner=new Tone.Panner(0);
+  sparkleAutoPanner.connect(sparkleHitPanner);
+  sparkleHitPanner.connect(filter);
+  sparkle=new Tone.FMSynth({oscillator:{type:"triangle"},modulation:{type:"sine"},harmonicity:2.0,modulationIndex:2.8,envelope:{attack:0.008,decay:0.12,sustain:0,release:1.35},modulationEnvelope:{attack:0.01,decay:0.16,sustain:0,release:0.8}});
+  sparkle.volume.value=-12;
+  crystalLead=new Tone.FMSynth({oscillator:{type:"triangle"},modulation:{type:"sine"},harmonicity:2.4,modulationIndex:1.8,envelope:{attack:0.35,decay:1.2,sustain:0.25,release:4.8},modulationEnvelope:{attack:0.25,decay:1.1,sustain:0.12,release:2.6}}).connect(filter);
+  crystalLead.volume.value=-18;
+  lowLead=new Tone.Synth({oscillator:{type:"triangle"},envelope:{attack:0.22,decay:0.9,sustain:0.25,release:3.8}}).connect(filter);
+  lowLead.volume.value=-19;
+  lowDrone=new Tone.MonoSynth({oscillator:{type:"sine"},filter:{Q:1.6,type:"lowpass",rolloff:-12},envelope:{attack:1.4,decay:0.8,sustain:0.62,release:6.8},filterEnvelope:{attack:1.1,decay:1.2,sustain:0.35,release:5.5,baseFrequency:70,octaves:2.1}}).connect(filter);
+  lowDrone.volume.value=-20;
+  bellSynth=new Tone.MetalSynth({frequency:380,envelope:{attack:0.001,decay:1.4,release:2.4},harmonicity:3.2,modulationIndex:22,resonance:1300,octaves:1.8}).connect(filter);
+  bellSynth.volume.value=-21;
+  chimeSynth=new Tone.FMSynth({oscillator:{type:"sine"},modulation:{type:"triangle"},harmonicity:2.9,modulationIndex:2.6,envelope:{attack:0.002,decay:0.7,sustain:0.0,release:2.8},modulationEnvelope:{attack:0.01,decay:0.5,sustain:0.0,release:1.7}}).connect(filter);
+  chimeSynth.volume.value=-23;
+  stringEnsemble=new Tone.PolySynth(Tone.AMSynth,{harmonicity:1.6,oscillator:{type:"triangle"},envelope:{attack:1.8,decay:0.9,sustain:0.72,release:8.5},modulation:{type:"sine"},modulationEnvelope:{attack:0.4,decay:0.7,sustain:0.3,release:1.8}}).connect(filter);
+  stringEnsemble.volume.value=-21;
+  padGain=new Tone.Gain(0.000001).connect(filter);
+  stringPad=new Tone.PolySynth(Tone.Synth,{oscillator:{type:"triangle"},envelope:{attack:3.2,decay:1.6,sustain:0.86,release:14.0}}).connect(padGain);
+  stringPad.volume.value=-19;
+  birdTremolo=new Tone.Tremolo({frequency:9,depth:0.65,wet:1.0}).start();
+  birdFilter=new Tone.Filter({type:"bandpass",frequency:2300,Q:6});
+  bird=new Tone.Synth({oscillator:{type:"sine"},envelope:{attack:0.004,decay:0.07,sustain:0,release:0.17}});
+  bird.chain(birdTremolo,birdFilter,filter);
+  bird.volume.value=-17;
+  windNoise=new Tone.Noise("pink").start();
+  windFilter=new Tone.Filter({type:"bandpass",frequency:420,Q:0.9});
+  windGain=new Tone.Gain(0.000001);
+  windNoise.chain(windFilter,windGain,filter);
+  waterNoise=new Tone.Noise("brown").start();
+  waterFilter=new Tone.Filter({type:"lowpass",frequency:900,rolloff:-12});
+  waterGain=new Tone.Gain(0.000001);
+  waterNoise.chain(waterFilter,waterGain,filter);
+  if(!harmonySlots){harmonySlots=[0,1].map(()=>{const g=new Tone.Gain(0.000001).connect(filter);const s=new Tone.PolySynth(Tone.FMSynth,{oscillator:{type:"triangle"},modulation:{type:"sine"},harmonicity:1.5,modulationIndex:1.4,envelope:{attack:2.4,decay:0.7,sustain:0.8,release:18},modulationEnvelope:{attack:0.4,decay:0.8,sustain:0.3,release:3.2}}).connect(g);s.volume.value=-15;return {synth:s,gain:g};});}
+}
+
+function keyFromSeason(season){if(season==="spring")return"C";if(season==="summer")return"D";if(season==="autumn")return"Eb";if(season==="winter")return"A";return"C";} function chordChoicesForKey(key){const map={"C":["C4","F4","G4","A4"],"D":["D4","G4","A4","B4"],"Eb":["Eb4","Ab4","Bb4","C5"],"A":["A3","D4","E4","F#4"]};return map[key]||map["C"];}
+function triad(rootNote){const r=Tone.Frequency(rootNote);return [r.toNote(),r.transpose(4).toNote(),r.transpose(7).toNote()];}
+function sparkleScale(key,weatherCat,time){const major={"C":["C5","D5","E5","F5","G5","A5","B5","C6"],"D":["D5","E5","F#5","G5","A5","B5","C#6","D6"],"Eb":["Eb5","F5","G5","Ab5","Bb5","C6","D6","Eb6"],"A":["A4","B4","C#5","D5","E5","F#5","G#5","A5"]};const pent={"C":["C5","D5","E5","G5","A5","C6"],"D":["D5","E5","F#5","A5","B5","D6"],"Eb":["Eb5","F5","G5","Bb5","C6","Eb6"],"A":["A4","B4","C#5","E5","F#5","A5"]};const usePent=(weatherCat==="rain")||(time==="night"||time==="late");return usePent?(pent[key]||pent["C"]):(major[key]||major["C"]);}
+function melodyScaleForKey(key){const map={"C":["C4","D4","E4","G4","A4","C5","E5"],"D":["D4","E4","F#4","A4","B4","D5","F#5"],"Eb":["Eb4","F4","G4","Bb4","C5","Eb5","G5"],"A":["A3","B3","C#4","E4","F#4","A4","C#5"]};return map[key]||map["C"];}
+function lowMelodyScaleForKey(key){const map={"C":["C3","E3","G3","A3","C4","E4"],"D":["D3","F#3","A3","B3","D4","F#4"],"Eb":["Eb3","G3","Bb3","C4","Eb4","G4"],"A":["A2","C#3","E3","F#3","A3","C#4"]};return map[key]||map["C"];}
+function melodyDuration(r){let d=randomBetween(1.8,4.8);if(r.time==="night"||r.time==="late")d*=1.25;if(r.weatherCat==="clear")d*=0.9;return clamp(d,1.4,6.8);}
+function getEnv(){const seasonSel=document.getElementById("seasonSel").value,timeSel=document.getElementById("timeSel").value,weatherSel=document.getElementById("weatherSel").value;const season=(seasonSel==="auto")?autoSeason():seasonSel;const time=(timeSel==="auto")?autoTimeBlock():timeSel;const weatherCat=(weatherSel==="auto")?weatherCategoryFromCode(lastWeather.code):weatherSel;return {season,time,weatherCat};}
+function prettyTimeLabel(t){if(t==="morning")return"朝";if(t==="day")return"昼";if(t==="evening")return"夕";if(t==="night")return"夜";if(t==="late")return"深夜";if(t==="spring")return"春";if(t==="summer")return"夏";if(t==="autumn")return"秋";if(t==="winter")return"冬";return t;} function prettyWeatherLabel(w){if(w==="clear")return"晴れ";if(w==="rain")return"雨";if(w==="other")return"曇り";return w;}
+function isDayTimeBlock(time){return(time==="day"||time==="morning"||time==="evening");}
+function moodLine(env,windNorm){
+  const wind=clamp(lastWeather.wind??0,0,30);
+  const uvRaw=(typeof lastWeather.uv==="number")?lastWeather.uv:null;
+  const uvDay=(uvRaw!==null&&(env.time==="morning"||env.time==="day"||env.time==="evening"))?uvRaw:0;
+  const windBand=(wind<1.2)?"calm":(wind<3.5)?"breeze":(wind<7)?"windy":"strong";
+  if(env.time==="morning"){const byWeather={clear:["朝の光がやわらかく差し、空気は澄んでいる。","静かな朝、透明な余韻が穏やかに広がる。"],rain:["朝の雨に輪郭がなじみ、余韻は静かに滲む。","湿った朝の空気に、やわらかな残響が重なる。"],other:["朝の空気は軽く、端正な響きがそっと並ぶ。","穏やかな朝の景色に、淡い奥行きが宿る。"]};return choose(byWeather[env.weatherCat]||byWeather.other);}
+  if(env.time==="day"){if(env.weatherCat==="clear"&&uvDay>=7){return choose(["光の密度が高く、乾いた余韻がすっと伸びる。","明るい空気に、透明な反射が細く差し込む。"]);}const dayByWeather={clear:["昼の澄んだ空気に、きらめきが静かに重なる。","明るい景色の中で、余韻は軽やかに保たれる。"],rain:["昼の雨は輪郭をやわらげ、響きはしっとり続く。","湿度を帯びた空気に、やさしい余白が生まれる。"],other:["中庸な昼の空気に、整った響きが穏やかに漂う。","落ち着いた明るさで、透明な層が重なっていく。"]};return choose(dayByWeather[env.weatherCat]||dayByWeather.other);}
+  if(env.time==="evening"){const eveByWeather={clear:["夕方の光は穏やかで、余韻は静かに沈み込む。","淡い陰影の中で、透明な響きがゆるやかに残る。"],rain:["夕方の雨が空気を丸め、残響はやわらかく続く。","濡れた景色に寄り添い、余韻が静かに滲む。"],other:["夕方の空気は落ち着き、響きの輪郭が整っていく。","静かな陰影の中で、層の深さがゆっくり増す。"]};return choose(eveByWeather[env.weatherCat]||eveByWeather.other);}
+  if(env.time==="night"){const nightByWind={calm:["夜の静けさに、余韻が穏やかに漂う。","澄んだ夜気の中で、響きが静かに広がる。"],breeze:["夜の空気に軽い揺らぎが混じり、余韻は上品に続く。","静かな夜、淡いきらめきがそっと残る。"],windy:["夜の風に合わせ、響きの層がゆるやかに入れ替わる。","静けさを保ったまま、夜の奥行きが深まる。"],strong:["夜の空気に風の気配が重なり、余韻が長く残る。","深い夜の景色に、静かな反射がわずかに差す。"]};return choose(nightByWind[windBand]);}
+  const lateByWeather={clear:["深夜の呼吸に合わせ、輪郭はやわらかくほどける。","深夜の静けさに、透明な余韻だけが残る。"],rain:["深夜の雨が空気を丸め、滲む余韻が静かに続く。","深夜の湿った静けさに、響きが淡く溶け込む。"],other:["深夜の呼吸に合わせ、輪郭はやわらかくほどける。","深い余白の中で、響きは静かに滞在する。"]};return choose(lateByWeather[env.weatherCat]||lateByWeather.other);
+}
+
+function applyParams(){
+  const env=getEnv();const key=keyFromSeason(env.season);applyWhiteByTime(env.time);
+  let bpm=66;if(env.time==="morning")bpm=74;if(env.time==="day")bpm=78;if(env.time==="evening")bpm=70;if(env.time==="night")bpm=60;if(env.time==="late")bpm=54;
+  Tone.Transport.bpm.value=bpm;
+  const seasonFx=SEASON_SOUND_PROFILE[env.season]||SEASON_SOUND_PROFILE.spring;
+  const timeFx=TIME_SOUND_PROFILE[env.time]||TIME_SOUND_PROFILE.day;
+  const weatherFx=WEATHER_SOUND_PROFILE[env.weatherCat]||WEATHER_SOUND_PROFILE.other;
+  const windNorm=clamp((lastWeather.wind??0)/15,0,1);
+  let cutoff=1950+980*weatherFx.brightness+560*seasonFx.brightness+460*timeFx.brightness;
+  let wet=0.42+weatherFx.wet+0.04*timeFx.space;
+  // FIX #5: decay is only applied when ensureAudioGraph creates the reverb (not dynamically overwritten).
+  // We track the desired decay value but only apply it if it has meaningfully changed (>1.0 difference),
+  // to avoid constant re-convolving which causes audio glitches.
+  let decayDesired=14.5+weatherFx.decay+4.0*timeFx.space+1.6*seasonFx.calm;
+  const uvRaw=(typeof lastWeather.uv==="number")?lastWeather.uv:null;
+  const showUv=(uvRaw!==null)&&isDayTimeBlock(env.time);
+  const uvText=showUv?uvRaw.toFixed(1):"—";
+  if(showUv){const u=clamp(uvRaw/11,0,1);cutoff+=560*u;wet-=0.06*u;decayDesired-=1.2*u;}
+  filter.frequency.value=clamp(cutoff,950,3600);
+  masterReverb.wet.value=clamp(wet,0.28,0.70);
+  // FIX #5: only update decay if changed by more than 1.0 to avoid glitch-on-every-applyParams
+  if(masterReverb._currentDecay===undefined||Math.abs(decayDesired-masterReverb._currentDecay)>1.0){
+    masterReverb.decay=clamp(decayDesired,9.0,20.0);
+    masterReverb._currentDecay=clamp(decayDesired,9.0,20.0);
+  }
+  if(birdFilter){birdFilter.frequency.value=clamp(2050+560*weatherFx.reflect+220*timeFx.brightness,1700,2950);}
+  if(sparkleAutoPanner){let f=0.10;if(env.time==="day")f=0.13;if(env.time==="morning")f=0.12;if(env.time==="evening")f=0.11;if(env.time==="night")f=0.085;if(env.time==="late")f=0.070;sparkleAutoPanner.frequency.value=f;sparkleAutoPanner.depth=clamp(0.70+0.12*weatherFx.reflect+0.11*windNorm,0.62,0.92);}
+  if(airHighpass){airHighpass.frequency.value=clamp(72+52*seasonFx.brightness+42*windNorm,60,155);}
+  if(airChorus){airChorus.depth=clamp(0.10+0.16*seasonFx.shimmer+0.14*windNorm,0.08,0.22);airChorus.wet.value=clamp(0.12+0.08*timeFx.space+0.08*weatherFx.reflect,0.10,0.24);airChorus.frequency.value=clamp(0.15+0.28*windNorm,0.12,0.45);}
+  if(sparkle){sparkle.harmonicity.value=clamp(1.7+0.7*seasonFx.shimmer+0.5*windNorm,1.4,3.1);sparkle.modulationIndex.value=clamp(2.1+1.2*weatherFx.reflect+0.9*windNorm,1.4,4.2);sparkle.volume.value=clamp(-13+2.4*weatherFx.reflect+1.6*timeFx.brightness,-15,-10);}
+  if(crystalLead){crystalLead.harmonicity.value=clamp(2.15+0.5*seasonFx.shimmer+0.3*windNorm,1.8,3.2);crystalLead.modulationIndex.value=clamp(1.5+1.1*weatherFx.reflect+0.45*windNorm,1.1,3.2);crystalLead.volume.value=clamp(-19+2.8*weatherFx.reflect+1.2*timeFx.brightness,-21,-15);}
+  if(stringPad){stringPad.volume.value=clamp(-20+2.1*timeFx.space+1.2*seasonFx.calm,-21,-16);}
+  if(lowLead){lowLead.volume.value=clamp(-20+1.8*seasonFx.calm+1.0*timeFx.space,-21,-16);}
+  if(lowDrone){lowDrone.volume.value=clamp(-22+2.2*seasonFx.calm+1.6*timeFx.space,-24,-17);}
+  if(bellSynth){bellSynth.resonance=clamp(1150+380*weatherFx.reflect+240*windNorm,900,1800);bellSynth.modulationIndex=clamp(18+10*seasonFx.shimmer+8*weatherFx.reflect,12,34);bellSynth.volume.value=clamp(-23+3.0*weatherFx.reflect+1.2*timeFx.brightness,-25,-18);}
+  if(chimeSynth){chimeSynth.harmonicity.value=clamp(2.4+0.9*seasonFx.shimmer+0.6*windNorm,2.0,4.0);chimeSynth.modulationIndex.value=clamp(2.0+1.5*weatherFx.reflect+0.6*windNorm,1.6,4.2);chimeSynth.volume.value=clamp(-24+2.6*weatherFx.reflect+0.8*timeFx.brightness,-25,-19);}
+  if(stringEnsemble){stringEnsemble.volume.value=clamp(-22+2.2*timeFx.space+1.2*seasonFx.calm,-23,-17);}
+  if(harmonySlots){const hAttack=clamp(2.2*seasonFx.padAttack*(1+0.28*timeFx.space),1.9,4.8);const hRelease=clamp(16.5+4.2*timeFx.space+2.0*seasonFx.calm,14.0,23.0);const hHarmonicity=clamp(1.35+0.45*seasonFx.shimmer+0.22*weatherFx.reflect,1.2,2.3);harmonySlots.forEach(slot=>{slot.synth.set({harmonicity:hHarmonicity,modulationIndex:clamp(1.2+0.4*weatherFx.reflect,1.0,2.0),envelope:{attack:hAttack,decay:0.7,sustain:0.8,release:hRelease},modulationEnvelope:{attack:0.4,decay:0.8,sustain:0.3,release:clamp(2.8+timeFx.space*1.6,2.8,4.4)}});});}
+  if(windFilter){windFilter.frequency.value=clamp(340+120*weatherFx.reflect+90*windNorm,280,520);windFilter.Q.value=clamp(0.82+0.26*windNorm+(env.time==="late"?0.14:0),0.78,1.22);}
+  if(waterFilter){waterFilter.frequency.value=clamp(780+210*weatherFx.reflect+80*timeFx.space,680,1080);}
+  const windText=`${(lastWeather.wind??0).toFixed(1)} m/s`;
+  setMediaSessionMetadata(`${env.season} / ${env.weatherCat} / wind ${windText} / UV ${uvText}`);
+  const sub=`Key ${key}`;const mood=moodLine(env,windNorm);setStatusChip(describeWeather(lastWeather.code));playButtonTone(env);if(isRunning)setStatus(sub,mood);
+  const mKey=document.getElementById("metricKey"),mTempo=document.getElementById("metricTempo"),mBright=document.getElementById("metricBrightness"),mSpark=document.getElementById("metricSparkle"),mRev=document.getElementById("metricReverb");
+  if(mKey)mKey.textContent=key;if(mTempo)mTempo.textContent=`${Math.round(bpm)} BPM`;if(mBright)mBright.textContent=(cutoff>2500)?"High":(cutoff>1700?"Mid":"Soft");if(mSpark)mSpark.textContent=(windNorm>0.6||env.weatherCat==="clear")?"Fine+":"Quiet";if(mRev)mRev.textContent=(wet>0.5)?"Deep":(wet>0.38?"Airy":"Dry");
+  const eSeason=document.getElementById("envSeason"),eTime=document.getElementById("envTime"),eWeather=document.getElementById("envWeather"),eWindUv=document.getElementById("envWindUv");
+  if(eSeason)eSeason.textContent=prettyTimeLabel(env.season)||env.season;if(eTime)eTime.textContent=prettyTimeLabel(env.time);if(eWeather)eWeather.textContent=prettyWeatherLabel(env.weatherCat);if(eWindUv)eWindUv.textContent=`${(lastWeather.wind??0).toFixed(1)}m/s · UV ${uvText}`;
+  return {...env,key,bpm,seasonFx,timeFx,weatherFx,windNorm};
+}
+
+function clearHarmonyScheduler(){if(chordEventId!==null){try{Tone.Transport.clear(chordEventId);}catch(e){} chordEventId=null;}}
+function harmonyGapSeconds(r){let g=randomBetween(0.55,2.1);const burstChance=(r.time==="day"||r.time==="morning")?0.30:(r.time==="evening")?0.24:(r.time==="night")?0.16:0.12;if(Math.random()<burstChance){g*=randomBetween(0.20,0.46);}if(r.time==="late")g*=1.12;if(r.time==="night")g*=1.04;if(r.weatherCat==="rain")g*=1.05;return clamp(g,0.22,3.3);}
+function octaveShifted(note,octShift){const f=Tone.Frequency(note);return f.transpose(12*octShift).toNote();}
+function pickOverlapMode(r){let base=0.52;if(r.time==="day"||r.time==="morning")base=0.60;if(r.time==="evening")base=0.54;if(r.time==="night")base=0.44;if(r.time==="late")base=0.32;if(r.weatherCat==="rain")base*=0.92;if(Math.random()>=base)return"none";let earlyWeight=0.78;if(r.time==="late")earlyWeight=0.62;if(r.time==="night")earlyWeight=0.70;if(r.weatherCat==="rain")earlyWeight*=0.95;return(Math.random()<earlyWeight)?"early":"tail";}
+
+function playOneHarmony(startTime,r){
+  if(!harmonySlots)return;
+  // FIX #1: harmony uses fresh env from applyParams (already passed as r from scheduleOnce)
+  const choices=chordChoicesForKey(r.key);
+  let root=choices[Math.floor(Math.random()*choices.length)];
+  if(root===lastRoot)root=choices[Math.floor(Math.random()*choices.length)];
+  lastRoot=root;
+  const playDur=randomBetween(26.0,52.0);const gapDur=harmonyGapSeconds(r);
+  let oct=choose([-1,0,0,0,+1,+1]);if(Math.random()<0.10)oct=choose([-2,+2]);
+  const shiftedRoot=octaveShifted(root,oct);
+  const slot=harmonySlots[harmonySlotIndex%harmonySlots.length];harmonySlotIndex++;
+  const chordGain=slot.gain;const chordPad=slot.synth;
+  let peak=0.15+Math.random()*0.17;
+  if(r.time==="night"||r.time==="late")peak*=0.78;if(r.weatherCat==="rain")peak*=0.86;
+  peak*=(1+(r.timeFx?.density??0)*0.22);peak*=(1+(r.seasonFx?.shimmer??0)*0.12);
+  const t0=startTime,tPeak=startTime+playDur*(0.35+Math.random()*0.35),tEnd=startTime+playDur;
+  chordGain.gain.cancelScheduledValues(t0);chordGain.gain.setValueAtTime(Math.max(0.000001,chordGain.gain.value),t0);chordGain.gain.exponentialRampToValueAtTime(Math.max(0.00018,peak),tPeak);chordGain.gain.exponentialRampToValueAtTime(0.00012,tEnd);
+  markLayerSound("harmony");
+  trackedTriggerAttackRelease(chordPad,triad(shiftedRoot),playDur,startTime,0.72);
+  const mode=pickOverlapMode(r);
+  let nextTime=startTime+playDur+gapDur;
+  if(mode==="tail"){nextTime=tEnd+randomBetween(-10.0,6.0);nextTime=Math.max(nextTime,startTime+7.0);}
+  else if(mode==="early"){const frac=randomBetween(0.30,0.70);nextTime=startTime+playDur*frac;}
+  chordEventId=Tone.Transport.scheduleOnce((t)=>{
+    try{
+      // FIX #1: always get fresh env when scheduling next harmony
+      const rr=applyParams();
+      playOneHarmony(t,rr);
+    }catch(e){console.warn("[harmony] scheduleOnce error",e);}
+  },nextTime);
+}
+
+function buildMultiTapDelay(){
+  if(sparkleMulti){sparkleMulti.tapNodes.forEach(n=>{try{n.dispose();}catch(e){}});try{sparkleMulti.input.dispose();}catch(e){}try{sparkleMulti.merger.dispose();}catch(e){} sparkleMulti=null;}
+  const taps=randInt(4,7);const merger=new Tone.Gain(1).connect(sparkleAutoPanner);const wetBase=randomBetween(0.40,0.62);const tapNodes=[];
+  for(let i=0;i<taps;i++){const dt=randomBetween(0.03,0.23),fb=randomBetween(0.18,0.44)*(1-i*0.08),wt=clamp(wetBase*(0.85-i*0.06),0.18,0.65);const d=new Tone.FeedbackDelay({delayTime:dt,feedback:fb,wet:wt});d.connect(merger);tapNodes.push(d);}
+  const input=new Tone.Gain(1);tapNodes.forEach(d=>input.connect(d));sparkleMulti={input,tapNodes,merger};return sparkleMulti;
+}
+
+// FIX #8: drastically reduced sparkle delay refresh chance to avoid glitch noise
+function pickSparkleDelayRefreshChance(r){
+  if(r.time==="day")return 0.005;
+  if(r.time==="morning")return 0.004;
+  if(r.time==="evening")return 0.003;
+  if(r.time==="night")return 0.002;
+  return 0.001;
+}
+function rebuildSparkleDelayIfNeeded(r){
+  if(!sparkleMulti){buildMultiTapDelay();sparkle.disconnect();sparkle.connect(sparkleMulti.input);return;}
+  if(Math.random()<pickSparkleDelayRefreshChance(r)){buildMultiTapDelay();sparkle.disconnect();sparkle.connect(sparkleMulti.input);}
+}
+
+function randomRhythmDuration(r){const dayish=(r.time==="morning"||r.time==="day"),nightish=(r.time==="night"||r.time==="late");const short=["32n","16n","16t"],mid=["24n","8t","12n"],long=["8n","4n","6n"];let pool=[...short,...mid];if(dayish)pool=[...short,...short,...mid,"16n"];if(nightish)pool=[...mid,...long,...mid];if(r.weatherCat==="rain")pool=[...pool,...long];const d=choose(pool),sec=Tone.Time(d).toSeconds();return clamp(sec,0.05,0.60);}
+function applyHitPan(time,r){if(!sparkleHitPanner)return;let width=0.85;if(r.weatherCat==="rain")width=0.70;if(r.time==="night")width=0.62;if(r.time==="late")width=0.52;if(r.time==="day")width=0.92;const target=(Math.random()*2-1)*width;sparkleHitPanner.pan.cancelScheduledValues(time);sparkleHitPanner.pan.setValueAtTime(sparkleHitPanner.pan.value,time);sparkleHitPanner.pan.linearRampToValueAtTime(target,time+0.06);}
+function windBaseLevel(r){const mix=getMix();const w=clamp(lastWeather.wind??0,0,15);let base=0.00006+0.00010*(w/15);if(r.time==="night")base*=0.78;if(r.time==="late")base*=0.65;if(r.weatherCat==="rain")base*=0.90;base*=mix.windMul;return clamp(base,0.000001,0.00035);}
+function waterBaseLevel(r){const mix=getMix();let base=0.00004;if(r.weatherCat==="rain")base=0.00008;if(r.time==="night")base*=0.85;if(r.time==="late")base*=0.70;base*=mix.waterMul;return clamp(base,0.000001,0.00030);}
+function triggerWindGust(time,r){if(!windGain)return;markLayerSound("wind");const base=windBaseLevel(r),peak=clamp(base*randomBetween(2.0,4.8),0.00001,0.00090),dur=randomBetween(2.4,6.8);windGain.gain.cancelScheduledValues(time);windGain.gain.setValueAtTime(Math.max(0.000001,windGain.gain.value),time);windGain.gain.exponentialRampToValueAtTime(Math.max(0.000001,peak),time+0.7);windGain.gain.exponentialRampToValueAtTime(Math.max(0.000001,base),time+dur);}
+function triggerWaterRipple(time,r){if(!waterGain)return;markLayerSound("water");const base=waterBaseLevel(r),peak=clamp(base*randomBetween(1.6,3.2),0.00001,0.00085),dur=randomBetween(1.4,4.6);waterGain.gain.cancelScheduledValues(time);waterGain.gain.setValueAtTime(Math.max(0.000001,waterGain.gain.value),time);waterGain.gain.exponentialRampToValueAtTime(Math.max(0.000001,peak),time+0.25);waterGain.gain.exponentialRampToValueAtTime(Math.max(0.000001,base),time+dur);}
+
+function rebuildLoops(){
+  if(isRebuildingLoops)return;
+  isRebuildingLoops=true;
+  try{
+    // FIX #4: do NOT call Tone.Transport.cancel(0) — stop loops individually instead
+    if(sparkleLoop){try{sparkleLoop.stop(0);}catch(e){}try{sparkleLoop.dispose();}catch(e){} sparkleLoop=null;}
+    if(birdLoop){try{birdLoop.stop(0);}catch(e){}try{birdLoop.dispose();}catch(e){} birdLoop=null;}
+    if(windLoop){try{windLoop.stop(0);}catch(e){}try{windLoop.dispose();}catch(e){} windLoop=null;}
+    if(waterLoop){try{waterLoop.stop(0);}catch(e){}try{waterLoop.dispose();}catch(e){} waterLoop=null;}
+    if(melodyLoop){try{melodyLoop.stop(0);}catch(e){}try{melodyLoop.dispose();}catch(e){} melodyLoop=null;}
+    if(lowMelodyLoop){try{lowMelodyLoop.stop(0);}catch(e){}try{lowMelodyLoop.dispose();}catch(e){} lowMelodyLoop=null;}
+    if(padLoop){try{padLoop.stop(0);}catch(e){}try{padLoop.dispose();}catch(e){} padLoop=null;}
+    if(crystalHarmonyLoop){try{crystalHarmonyLoop.stop(0);}catch(e){}try{crystalHarmonyLoop.dispose();}catch(e){} crystalHarmonyLoop=null;}
+    if(stringHarmonyLoop){try{stringHarmonyLoop.stop(0);}catch(e){}try{stringHarmonyLoop.dispose();}catch(e){} stringHarmonyLoop=null;}
+    if(lowResonanceLoop){try{lowResonanceLoop.stop(0);}catch(e){}try{lowResonanceLoop.dispose();}catch(e){} lowResonanceLoop=null;}
+    if(bellLoop){try{bellLoop.stop(0);}catch(e){}try{bellLoop.dispose();}catch(e){} bellLoop=null;}
+    if(chimeLoop){try{chimeLoop.stop(0);}catch(e){}try{chimeLoop.dispose();}catch(e){} chimeLoop=null;}
+    clearHarmonyScheduler();
+
+    // FIX #1: get fresh env once here; each loop callback reads live env via getEnv() at trigger time
+    const r=applyParams();
+    const now=Tone.now();
+    if(windGain)windGain.gain.setValueAtTime(Math.max(0.000001,windBaseLevel(r)),now);
+    if(waterGain)waterGain.gain.setValueAtTime(Math.max(0.000001,waterBaseLevel(r)),now);
+    const startAt=Tone.Transport.seconds+0.1;
+    chordEventId=Tone.Transport.scheduleOnce((t)=>{try{playOneHarmony(t,applyParams());}catch(e){console.warn("[harmony] start schedule error",e);}},startAt);
+    rebuildSparkleDelayIfNeeded(r);
+
+    const sparkleInterval=0.52;
+    // FIX #1: sparkle callback reads live env at each tick via getEnv()
+    const sparkleCb = safeLoopCallback("sparkle",(time)=>{
+      rebuildSparkleDelayIfNeeded(r);
+      // Read fresh env each tick — fixes closure staleness
+      const env=getEnv();const key=keyFromSeason(env.season);
+      const seasonFx=SEASON_SOUND_PROFILE[env.season]||SEASON_SOUND_PROFILE.spring;
+      const timeFx=TIME_SOUND_PROFILE[env.time]||TIME_SOUND_PROFILE.day;
+      const weatherFx=WEATHER_SOUND_PROFILE[env.weatherCat]||WEATHER_SOUND_PROFILE.other;
+      const windNorm=clamp((lastWeather.wind??0)/15,0,1);
+      const liveR={...env,key,seasonFx,timeFx,weatherFx,windNorm};
+      const scale=sparkleScale(liveR.key,liveR.weatherCat,liveR.time);
+      let p=0.60;
+      if(liveR.weatherCat==="rain")p=0.50;if(liveR.time==="late")p=0.36;if(liveR.time==="night")p=Math.min(p,0.44);
+      if(liveR.weatherCat==="clear"&&(liveR.time==="day"||liveR.time==="morning"))p=0.70;
+      p+=(liveR.seasonFx?.shimmer??0)*0.07;p+=(liveR.timeFx?.density??0)*0.18;p+=(liveR.weatherFx?.reflect??0)*0.08;
+      const windBoost=clamp(((lastWeather.wind??0)-2)/10,0,0.14);p+=windBoost;
+      const uvRaw=(typeof lastWeather.uv==="number")?lastWeather.uv:null;
+      if(uvRaw!==null&&(liveR.time==="day"||liveR.time==="morning")){const u=clamp(uvRaw/11,0,1);p+=0.12*u;}
+      p=clamp(p,0.14,0.82);
+      if(Math.random()<p){
+        applyHitPan(time,liveR);
+        const note=scale[Math.floor(Math.random()*scale.length)];
+        const durSec=clamp(randomRhythmDuration(liveR)*(1+(liveR.timeFx?.space??0)*0.25),0.05,0.66);
+        const amp=0.36+Math.random()*0.11;
+        if(Math.random()<0.16){const note2=scale[Math.floor(Math.random()*scale.length)],dur2=clamp(durSec*randomBetween(0.75,1.15),0.05,0.55);trackedTriggerAttackReleaseLayer("sparkle",sparkle,note,durSec,time,amp);trackedTriggerAttackReleaseLayer("sparkle",sparkle,note2,dur2,time+0.02,amp*0.82);}
+        else trackedTriggerAttackReleaseLayer("sparkle",sparkle,note,durSec,time,amp);
+      }
+    });
+    loopCallbacks["sparkle"]=sparkleCb; loopIntervals["sparkle"]=sparkleInterval;
+    sparkleLoop=new Tone.Loop(sparkleCb,sparkleInterval).start(0);
+
+    function birdChance(){
+      const mix=getMix();
+      // FIX #1: read live env
+      const env=getEnv();
+      let base=0.08;if(env.time==="morning")base=0.18;if(env.time==="day")base=0.26;if(env.time==="evening")base=0.14;if(env.time==="night")base=0.04;if(env.time==="late")base=0.018;
+      if(env.weatherCat==="rain")base*=0.70;if(env.weatherCat==="clear"&&(env.time==="day"||env.time==="morning"))base*=1.10;
+      const w=clamp(lastWeather.wind??0,0,15);base*=(1+0.12*(w/15));
+      const uvRaw=(typeof lastWeather.uv==="number")?lastWeather.uv:null;if(uvRaw!==null&&env.time==="day"){const u=clamp(uvRaw/11,0,1);base*=(1+0.12*u);}
+      base*=mix.birdMul;return clamp(base,0.0,0.55);
+    }
+    function chirp(time,amp=0.30){const base=1450+Math.random()*700,up=base+980+Math.random()*560,dur=0.055+Math.random()*0.070;bird.frequency.setValueAtTime(base,time);bird.frequency.linearRampToValueAtTime(up,time+dur);bird.frequency.linearRampToValueAtTime(base+240,time+dur+0.03);trackedTriggerAttackReleaseLayer("bird",bird,"C6",dur+0.06,time,amp);}
+    function phrase(time){const n=(Math.random()<0.50)?2:(Math.random()<0.80?3:5);const baseGap=0.10+Math.random()*0.09;for(let i=0;i<n;i++){const t=time+i*(baseGap+Math.random()*0.06);chirp(t,0.26+Math.random()*0.12);}}
+    function birdLoopIntervalSeconds(){
+      const env=getEnv(); // FIX #1: live env
+      if(env.time==="day")return 1.55;if(env.time==="morning")return 1.70;if(env.time==="evening")return 2.05;if(env.time==="night")return 2.80;return 3.40;
+    }
+    const birdInterval=birdLoopIntervalSeconds();
+    const birdCb=safeLoopCallback("bird",(time)=>{
+      if(!bird)return;
+      const env=getEnv(); // FIX #1: live env
+      const p=birdChance();
+      if(Math.random()<p){
+        if(env.time==="night"||env.time==="late"){chirp(time,0.23);if(Math.random()<0.22)chirp(time+0.16+Math.random()*0.10,0.21);return;}
+        const roll=Math.random();
+        if(roll<0.46){chirp(time,0.28+Math.random()*0.10);if(Math.random()<(env.time==="day"?0.62:0.46))chirp(time+0.12+Math.random()*0.12,0.24+Math.random()*0.10);}
+        else if(roll<0.80){const n=(Math.random()<0.55)?2:4;for(let i=0;i<n;i++)chirp(time+i*(0.11+Math.random()*0.10),0.23+Math.random()*0.12);}
+        else phrase(time);
+      }
+    });
+    loopCallbacks["bird"]=birdCb; loopIntervals["bird"]=birdInterval;
+    birdLoop=new Tone.Loop(birdCb,birdInterval).start(0);
+
+    function windLoopInterval(){const env=getEnv();if(env.time==="day")return 3.2;if(env.time==="morning")return 3.6;if(env.time==="evening")return 4.0;if(env.time==="night")return 5.0;return 6.2;}
+    const windInterval=windLoopInterval();
+    const windCb=safeLoopCallback("wind",(time)=>{
+      const mix=getMix();const env=getEnv(); // FIX #1
+      const weatherFx=WEATHER_SOUND_PROFILE[env.weatherCat]||WEATHER_SOUND_PROFILE.other;
+      const liveR={...env,weatherFx};
+      const w=clamp(lastWeather.wind??0,0,15);let p=0.20+0.35*(w/15);
+      if(env.time==="late")p*=0.70;if(env.weatherCat==="rain")p*=0.90;
+      p*=clamp(0.15+0.85*mix.windMul,0.0,2.0);p=clamp(p,0.0,0.78);
+      if(Math.random()<p)triggerWindGust(time,liveR);
+    });
+    loopCallbacks["wind"]=windCb; loopIntervals["wind"]=windInterval;
+    windLoop=new Tone.Loop(windCb,windInterval).start(0);
+
+    function waterLoopInterval(){const env=getEnv();if(env.weatherCat==="rain")return 3.0;if(env.time==="day")return 4.2;if(env.time==="morning")return 4.6;if(env.time==="evening")return 5.0;if(env.time==="night")return 6.2;return 7.2;}
+    const waterInterval=waterLoopInterval();
+    const waterCb=safeLoopCallback("water",(time)=>{
+      const mix=getMix();const env=getEnv(); // FIX #1
+      const weatherFx=WEATHER_SOUND_PROFILE[env.weatherCat]||WEATHER_SOUND_PROFILE.other;
+      const liveR={...env,weatherFx};
+      let p=(env.weatherCat==="rain")?0.44:0.26;
+      if(env.time==="late")p*=0.75;if(env.time==="night")p*=0.85;
+      p*=clamp(0.15+0.85*mix.waterMul,0.0,2.0);p=clamp(p,0.0,0.66);
+      if(Math.random()<p)triggerWaterRipple(time,liveR);
+    });
+    loopCallbacks["water"]=waterCb; loopIntervals["water"]=waterInterval;
+    waterLoop=new Tone.Loop(waterCb,waterInterval).start(0);
+
+    const padInterval=randomBetween(12,18);
+    const padCb=safeLoopCallback("pad",(time)=>{
+      if(!stringPad||!padGain)return;
+      const env=getEnv();const key=keyFromSeason(env.season); // FIX #1
+      const roots=chordChoicesForKey(key);const root=choose(roots);const dur=randomBetween(18,34);
+      const notes=triad(octaveShifted(root,-1));const base=0.00010+(env.time==="night"||env.time==="late"?0.00002:0.00005);
+      padGain.gain.cancelScheduledValues(time);padGain.gain.setValueAtTime(Math.max(0.000001,padGain.gain.value),time);padGain.gain.exponentialRampToValueAtTime(base,time+4.0);padGain.gain.exponentialRampToValueAtTime(0.00002,time+dur);
+      trackedTriggerAttackReleaseLayer("pad",stringPad,notes,dur,time,0.28);
+    });
+    loopCallbacks["pad"]=padCb; loopIntervals["pad"]=padInterval;
+    padLoop=new Tone.Loop(padCb,padInterval).start(0);
+
+    const melodyInterval=randomBetween(3.4,6.2);
+    const melodyCb=safeLoopCallback("melody",(time)=>{
+      if(!crystalLead)return;
+      const env=getEnv();const key=keyFromSeason(env.season); // FIX #1
+      const seasonFx=SEASON_SOUND_PROFILE[env.season]||SEASON_SOUND_PROFILE.spring;
+      const timeFx=TIME_SOUND_PROFILE[env.time]||TIME_SOUND_PROFILE.day;
+      const weatherFx=WEATHER_SOUND_PROFILE[env.weatherCat]||WEATHER_SOUND_PROFILE.other;
+      const liveR={...env,key,seasonFx,timeFx,weatherFx};
+      const mScale=melodyScaleForKey(key);
+      const melodyOnlyChance=(env.time==="night"||env.time==="late")?0.42:0.22;
+      const useMelodyOnly=Math.random()<melodyOnlyChance;
+      const phraseLen=useMelodyOnly?(Math.random()<0.6?3:4):(Math.random()<0.5?2:3);
+      for(let i=0;i<phraseLen;i++){const n=choose(mScale);const t=time+i*randomBetween(0.45,0.95);const d=melodyDuration(liveR)*(useMelodyOnly?1.18:0.82);const v=useMelodyOnly?0.36:0.28;trackedTriggerAttackReleaseLayer("melody",crystalLead,n,d,t,v);}
+      if(useMelodyOnly&&sparkle&&Math.random()<0.7){sparkle.volume.value=-24;}else if(sparkle){sparkle.volume.value=-12;}
+    });
+    loopCallbacks["melody"]=melodyCb; loopIntervals["melody"]=melodyInterval;
+    melodyLoop=new Tone.Loop(melodyCb,melodyInterval).start(0);
+
+    const lowMelodyInterval=randomBetween(5.2,8.4);
+    const lowMelodyCb=safeLoopCallback("lowMelody",(time)=>{
+      if(!lowLead)return;
+      const env=getEnv();const key=keyFromSeason(env.season); // FIX #1
+      const timeFx=TIME_SOUND_PROFILE[env.time]||TIME_SOUND_PROFILE.day;
+      const weatherFx=WEATHER_SOUND_PROFILE[env.weatherCat]||WEATHER_SOUND_PROFILE.other;
+      const liveR={...env,key,timeFx,weatherFx};
+      const lowScale=lowMelodyScaleForKey(key);const n=choose(lowScale);const d=clamp(melodyDuration(liveR)*1.22,2.2,7.2);
+      trackedTriggerAttackReleaseLayer("melody",lowLead,n,d,time,0.34);
+      if(Math.random()<0.35){const n2=choose(lowScale);trackedTriggerAttackReleaseLayer("melody",lowLead,n2,d*0.78,time+randomBetween(0.7,1.4),0.26);}
+    });
+    lowMelodyLoop=new Tone.Loop(lowMelodyCb,lowMelodyInterval).start(0);
+
+    const crystalHarmonyInterval=randomBetween(4.8,8.0);
+    const crystalHarmonyCb=safeLoopCallback("crystalHarmony",(time)=>{
+      if(!crystalLead)return;
+      const env=getEnv();const key=keyFromSeason(env.season); // FIX #1
+      const root=choose(chordChoicesForKey(key));const chord=triad(octaveShifted(root,1));const pick=[chord[0],chord[1],chord[2]];
+      trackedTriggerAttackReleaseLayer("melody",crystalLead,choose(pick),randomBetween(2.4,4.8),time,0.24);
+      if(Math.random()<0.66){trackedTriggerAttackReleaseLayer("melody",crystalLead,choose(pick),randomBetween(2.0,4.2),time+randomBetween(0.25,0.7),0.20);}
+    });
+    crystalHarmonyLoop=new Tone.Loop(crystalHarmonyCb,crystalHarmonyInterval).start(0);
+
+    const stringHarmonyInterval=randomBetween(6.2,10.0);
+    const stringHarmonyCb=safeLoopCallback("stringHarmony",(time)=>{
+      if(!stringPad)return;
+      const env=getEnv();const key=keyFromSeason(env.season); // FIX #1
+      const root=choose(chordChoicesForKey(key));const chord=triad(octaveShifted(root,0));
+      const seasonalChance=(env.season==="winter"||env.season==="autumn")?0.82:0.64;
+      if(Math.random()<seasonalChance){trackedTriggerAttackRelease(stringPad,[chord[1],chord[2]],randomBetween(4.8,8.4),time,0.22);}
+      if(Math.random()<0.42){trackedTriggerAttackRelease(stringPad,[chord[0]],randomBetween(3.8,6.5),time+randomBetween(0.3,0.9),0.18);}
+    });
+    stringHarmonyLoop=new Tone.Loop(stringHarmonyCb,stringHarmonyInterval).start(0);
+
+    const lowResonanceInterval=randomBetween(9.0,14.0);
+    const lowResonanceCb=safeLoopCallback("lowResonance",(time)=>{
+      if(!lowDrone)return;
+      const env=getEnv();const key=keyFromSeason(env.season); // FIX #1
+      const lowScale=lowMelodyScaleForKey(key);const note=choose(lowScale.slice(0,4));const dur=randomBetween(7.0,13.5);
+      const amp=(env.time==="night"||env.time==="late")?0.33:0.27;
+      trackedTriggerAttackReleaseLayer("melody",lowDrone,note,dur,time,amp);
+      if(Math.random()<0.34){trackedTriggerAttackReleaseLayer("melody",lowDrone,note,dur*0.62,time+randomBetween(1.1,2.2),amp*0.78);}
+    });
+    lowResonanceLoop=new Tone.Loop(lowResonanceCb,lowResonanceInterval).start(0);
+
+    const bellInterval=randomBetween(2.8,5.6);
+    const bellCb=safeLoopCallback("bell",(time)=>{
+      if(!bellSynth)return;
+      const env=getEnv(); // FIX #1
+      const seasonFx=SEASON_SOUND_PROFILE[env.season]||SEASON_SOUND_PROFILE.spring;
+      const weatherFx=WEATHER_SOUND_PROFILE[env.weatherCat]||WEATHER_SOUND_PROFILE.other;
+      const windNorm=clamp((lastWeather.wind??0)/15,0,1);
+      const brightChance=clamp(0.08+0.20*(weatherFx?.reflect??0)+0.16*(seasonFx?.shimmer??0)+0.10*windNorm,0.03,0.34);
+      if(Math.random()<brightChance){
+        bellSynth.frequency=choose([320,360,420,480,540,620]);
+        // FIX #6 + FIX #7: use triggerAttackRelease and mark activity
+        trackedTriggerAttack("melody",bellSynth,time,0.22);
+      }
+      if(Math.random()<brightChance*0.45){
+        bellSynth.frequency=choose([520,620,760]);
+        trackedTriggerAttack("melody",bellSynth,time+randomBetween(0.08,0.3),0.15);
+      }
+    });
+    loopCallbacks["bell"]=bellCb; loopIntervals["bell"]=bellInterval;
+    bellLoop=new Tone.Loop(bellCb,bellInterval).start(0);
+
+    const chimeInterval=randomBetween(3.0,6.8);
+    const chimeCb=safeLoopCallback("chime",(time)=>{
+      if(!chimeSynth)return;
+      const env=getEnv();const key=keyFromSeason(env.season); // FIX #1
+      const weatherFx=WEATHER_SOUND_PROFILE[env.weatherCat]||WEATHER_SOUND_PROFILE.other;
+      const scale=melodyScaleForKey(key);
+      const p=(env.weatherCat==="clear"?0.30:(env.weatherCat==="rain"?0.14:0.22))*(env.time==="late"?0.65:1.0);
+      if(Math.random()<p){const n=choose(scale);trackedTriggerAttackReleaseLayer("melody",chimeSynth,n,randomBetween(1.2,2.8),time,0.22);}
+      if(Math.random()<p*0.42){trackedTriggerAttackReleaseLayer("melody",chimeSynth,choose(scale),randomBetween(0.9,2.2),time+randomBetween(0.15,0.5),0.18);}
+    });
+    chimeLoop=new Tone.Loop(chimeCb,chimeInterval).start(0);
+
+  }finally{
+    isRebuildingLoops=false; // FIX #2: always releases, even on error
+  }
+}
+
+function playButtonTone(env){const btn=document.getElementById("btnToggle"),label=document.getElementById("btnLabel"),sub=document.getElementById("btnSub");if(!btn||!label||!sub)return;const uvRaw=(typeof lastWeather.uv==="number")?lastWeather.uv:0;const u=clamp(uvRaw/11,0,1);if(!isRunning){btn.className="mt-7 w-full rounded-[30px] px-6 py-8 transition active:scale-[0.99] bg-slate-900 text-white hover:bg-slate-800 shadow-[0_18px_40px_rgba(15,23,42,0.18)] relative overflow-hidden";label.className="text-2xl font-semibold text-white";sub.className="text-xs text-white/80";btn.style.opacity="1";btn.style.boxShadow="0 18px 40px rgba(15,23,42,0.18), inset 0 0 0 0 rgba(255,255,255,0)";return;}const byTime={morning:"from-sky-50 to-cyan-100",day:"from-sky-100 to-blue-100",evening:"from-rose-100 to-stone-200",night:"from-slate-800 to-indigo-900",late:"from-slate-900 to-indigo-900"};let grad=byTime[env.time]||byTime.day;const darkBg=(env.time==="night"||env.time==="late");if(env.weatherCat==="rain")grad=darkBg?"from-slate-800 to-slate-700":"from-slate-100 to-slate-200";const txt=darkBg?"text-white":"text-slate-900";btn.className=`mt-7 w-full rounded-[30px] px-6 py-8 transition active:scale-[0.99] bg-gradient-to-br ${grad} ${txt} shadow-[0_14px_32px_rgba(15,23,42,0.10)] border border-slate-200 relative overflow-hidden`;label.className=`text-2xl font-semibold ${darkBg?"text-white":"text-slate-900"}`;sub.className=`text-xs ${darkBg?"text-white/80":"text-slate-700"}`;const alpha=(env.weatherCat==="rain")?(0.95+0.02*u):(0.96+0.03*u);btn.style.opacity=String(alpha);btn.style.boxShadow=darkBg?"0 14px 32px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,0.08)":"0 14px 32px rgba(15,23,42,0.10), inset 0 0 0 1px rgba(255,255,255,0.35)";}
+
+// FIX #3: per-layer recovery uses saved callbacks (not disposed loop's properties)
+async function recoverLayerLoopIfSilent(layer){
+  const now=Date.now();
+  const lastAt=layerLastSoundAt[layer]||0;
+  const lastRecovery=layerLastRecoveryAt[layer]||0;
+  const threshold=LAYER_SILENCE_MS[layer]||60000;
+  if(!isRunning||isRecovering)return false;
+  if(now-lastAt<=threshold)return false;
+  if(now-lastRecovery<=LAYER_RECOVERY_COOLDOWN_MS)return false;
+  if(now-lastAnyLayerRecoveryAt<=GLOBAL_LAYER_RECOVERY_COOLDOWN_MS)return false;
+  layerLastRecoveryAt[layer]=now;
+  lastAnyLayerRecoveryAt=now;
+
+  await resumeAudioIfNeeded(`layer-${layer}`);
+
+  const loopVarMap={sparkle:()=>sparkleLoop,bird:()=>birdLoop,wind:()=>windLoop,water:()=>waterLoop,melody:()=>melodyLoop,pad:()=>padLoop};
+
+  if(loopVarMap[layer]){
+    // FIX #3: use saved callbacks/intervals from loopCallbacks/loopIntervals — not from disposed loop
+    const cb=loopCallbacks[layer];
+    const interval=loopIntervals[layer];
+    if(!cb||!interval){return false;}
+    const loopRef=loopVarMap[layer]();
+    try{
+      if(loopRef){try{loopRef.stop(0);}catch(e){}try{loopRef.dispose();}catch(e){}}
+      const recreated=new Tone.Loop(cb,interval).start(0);
+      if(layer==="sparkle")sparkleLoop=recreated;
+      if(layer==="bird")birdLoop=recreated;
+      if(layer==="wind")windLoop=recreated;
+      if(layer==="water")waterLoop=recreated;
+      if(layer==="melody")melodyLoop=recreated;
+      if(layer==="pad")padLoop=recreated;
+      markLayerSound(layer);
+      return true;
+    }catch(e){
+      console.warn(`[${layer}] loop recreate failed`,e);
+    }
+  }
+
+  if(layer==="harmony"){
+    try{
+      clearHarmonyScheduler();
+      const startAt=Tone.Transport.seconds+0.12;
+      chordEventId=Tone.Transport.scheduleOnce((t)=>{
+        try{playOneHarmony(t,applyParams());}catch(e){console.warn("[harmony] reschedule failed",e);}
+      },startAt);
+      markLayerSound("harmony");
+      return true;
+    }catch(e){console.warn("[harmony] recovery failed",e);}
+  }
+
+  return false;
+}
+
+// FIX #2: watchdog now has robust isRecovering release in all paths
+function startPlaybackWatchdog(){
+  if(playbackWatchdogId)return;
+  lastTransportSeconds=Tone.Transport.seconds||0;
+  lastTransportCheckAt=Date.now();
+  lastSoundAt=Date.now();
+  silentRecoveryCount=0;
+  playbackWatchdogId=setInterval(async()=>{
+    // FIX #2: guard against re-entry but ensure flag is ALWAYS released via separate try/finally
+    if(isRecovering)return;
+    isRecovering=true;
+    try{
+      if(!isRunning)return;
+      const nowMs=Date.now();
+      const nowSec=Tone.Transport.seconds||0;
+      const stalled=(Math.abs(nowSec-lastTransportSeconds)<0.0001)&&(nowMs-lastTransportCheckAt>15000);
+      const silent=(nowMs-lastSoundAt)>15000;
+      lastTransportSeconds=nowSec;
+      lastTransportCheckAt=nowMs;
+
+      if(stalled||silent){
+        await resumeAudioIfNeeded(stalled?"transport-stall":"silence");
+      }
+
+      if(!stalled){
+        // FIX #2: each recovery call is individually guarded; errors in one don't affect others
+        let anyRecovered=false;
+        for(const layer of["sparkle","bird","wind","water","melody","pad","harmony"]){
+          try{
+            const recovered=await recoverLayerLoopIfSilent(layer);
+            if(recovered)anyRecovered=true;
+          }catch(e){console.warn(`[watchdog] layer ${layer} recovery error`,e);}
+        }
+        if(anyRecovered){
+          try{await resumeAudioIfNeeded("layer-recovered");}catch(e){}
+        }
+      }
+
+      if(silent){
+        if(nowMs-lastRebuildAttemptAt>REBUILD_COOLDOWN_MS&&!isRebuildingLoops){
+          lastRebuildAttemptAt=nowMs;
+          try{rebuildLoops();silentRecoveryCount=Math.min(silentRecoveryCount+1,4);}catch(e){
+            console.warn("[watchdog] rebuildLoops error",e);
+          }
+        }
+
+        if((nowMs-lastSoundAt)>30000&&silentRecoveryCount>=1&&nowMs-lastHardRecoveryAt>HARD_RECOVERY_COOLDOWN_MS){
+          lastHardRecoveryAt=nowMs;
+          try{Tone.Transport.stop();}catch(e){}
+          try{Tone.Transport.start();}catch(e){}
+          if(!isRebuildingLoops){
+            try{rebuildLoops();silentRecoveryCount=Math.min(silentRecoveryCount+1,4);}catch(e){}
+          }
+        }
+
+        if((nowMs-lastSoundAt)>45000&&nowMs-lastHardRecoveryAt>HARD_RECOVERY_COOLDOWN_MS){
+          lastHardRecoveryAt=nowMs;
+          try{Tone.Transport.stop();}catch(e){}
+          try{Tone.Transport.cancel(0);}catch(e){}
+          try{const ctx=Tone.getContext?.().rawContext||Tone.context?.rawContext||Tone.context;if(ctx&&ctx.state!=="closed")await ctx.close();}catch(e){}
+          try{await Tone.start();}catch(e){}
+          try{ensureAudioGraph();}catch(e){}
+          if(isRunning&&!isRebuildingLoops){
+            try{Tone.Transport.start();}catch(e){}
+            try{rebuildLoops();}catch(e){}
+            try{applyParams();}catch(e){}
+          }
+        }
+      }else{
+        silentRecoveryCount=0;
+      }
+    }finally{
+      // FIX #2: ALWAYS release isRecovering, no matter what happens above
+      isRecovering=false;
+    }
+  },10000);
+}
+
+function stopPlaybackWatchdog(){if(!playbackWatchdogId)return;clearInterval(playbackWatchdogId);playbackWatchdogId=null;silentRecoveryCount=0;}
+function setButtonState(){const label=document.getElementById("btnLabel"),sub=document.getElementById("btnSub"),iconSvg=document.getElementById("iconSvg");if(isRunning){label.textContent="Stop";sub.textContent="タップで停止";sub.className="text-xs text-sky-100";iconSvg.innerHTML='<path d="M6 6h5v12H6zM13 6h5v12h-5z"></path>';}else{label.textContent="Start";sub.textContent="タップで再生";sub.className="text-xs text-white/80";iconSvg.innerHTML='<path d="M8 5v14l11-7z"></path>';setStatusChip("—");setStatus("待機中","夜の澄んだ空気、きらめき控えめ。");}playButtonTone(getEnv());updatePlaybackState();}
+async function start(){ensureAudioGraph();Tone.Destination.mute=false;await Tone.start();await resumeAudioIfNeeded("start");await requestWakeLock();Tone.Transport.start();rebuildLoops();isRunning=true;lastSoundAt=Date.now();Object.keys(layerLastSoundAt).forEach(k=>layerLastSoundAt[k]=Date.now());startPlaybackWatchdog();setButtonState();applyParams();}
+function stop(){isRunning=false;stopPlaybackWatchdog();Tone.Destination.mute=true;audioRecoveryInFlight=false;isRecovering=false;clearHarmonyScheduler();if(sparkleLoop){sparkleLoop.stop();sparkleLoop.dispose();sparkleLoop=null;}if(birdLoop){birdLoop.stop();birdLoop.dispose();birdLoop=null;}if(windLoop){windLoop.stop();windLoop.dispose();windLoop=null;}if(waterLoop){waterLoop.stop();waterLoop.dispose();waterLoop=null;}if(melodyLoop){melodyLoop.stop();melodyLoop.dispose();melodyLoop=null;}if(lowMelodyLoop){lowMelodyLoop.stop();lowMelodyLoop.dispose();lowMelodyLoop=null;}if(padLoop){padLoop.stop();padLoop.dispose();padLoop=null;}if(crystalHarmonyLoop){crystalHarmonyLoop.stop();crystalHarmonyLoop.dispose();crystalHarmonyLoop=null;}if(stringHarmonyLoop){stringHarmonyLoop.stop();stringHarmonyLoop.dispose();stringHarmonyLoop=null;}if(lowResonanceLoop){lowResonanceLoop.stop();lowResonanceLoop.dispose();lowResonanceLoop=null;}if(bellLoop){bellLoop.stop();bellLoop.dispose();bellLoop=null;}if(chimeLoop){chimeLoop.stop();chimeLoop.dispose();chimeLoop=null;}Tone.Transport.stop();Tone.Transport.cancel(0);if(sparkleMulti){sparkleMulti.tapNodes.forEach(n=>{try{n.dispose();}catch(e){}});try{sparkleMulti.input.dispose();}catch(e){}try{sparkleMulti.merger.dispose();}catch(e){} sparkleMulti=null;}const now=Tone.now();try{if(windGain)windGain.gain.setValueAtTime(0.000001,now);if(waterGain)waterGain.gain.setValueAtTime(0.000001,now);if(harmonySlots){harmonySlots.forEach(s=>{try{s.gain.gain.cancelScheduledValues(now);}catch(e){}try{s.gain.gain.setValueAtTime(0.000001,now);}catch(e){}});}if(padGain){padGain.gain.setValueAtTime(0.000001,now);}if(sparkle){sparkle.volume.value=-12;}}catch(e){} setStatusChip(describeWeather(lastWeather.code));setStatus("待機中","再生ボタンで開始");setButtonState();releaseWakeLock();}
+async function refreshWeather(){if(isRefreshingWeather)return;isRefreshingWeather=true;try{nextUpdateAt=Date.now()+AUTO_UPDATE_MS;setStatusChip("—");setStatus("取得中…","天気/風/UV");const pos=await getCurrentPosition();const lat=pos.coords.latitude,lon=pos.coords.longitude;const {code,wind,uv}=await fetchWeatherByCoords(lat,lon);lastWeather={code,wind,uv};applyParams();if(isRunning){applyParams();}else{const env=getEnv();const key=keyFromSeason(env.season);const uvRaw=(typeof lastWeather.uv==="number")?lastWeather.uv:null;const showUv=(uvRaw!==null)&&isDayTimeBlock(env.time);const uvText=showUv?uvRaw.toFixed(1):"—";const mood=moodLine(env,clamp((lastWeather.wind??0)/15,0,1));setStatusChip(describeWeather(lastWeather.code));setStatus(`Key ${key}`,mood);}}catch(e){console.error(e);nextUpdateAt=Date.now()+WEATHER_RETRY_MS;setStatusChip("—");setStatus("エラー",`${e.message}（${Math.floor(WEATHER_RETRY_MS/1000)}秒後に再試行）`);}finally{isRefreshingWeather=false;}}
+function tick(){const remain=Math.max(0,nextUpdateAt-Date.now());const mm=String(Math.floor(remain/60000)).padStart(2,"0"),ss=String(Math.floor((remain%60000)/1000)).padStart(2,"0");document.getElementById("countdown").textContent=`${mm}:${ss}`;if(remain<=0&&!isRefreshingWeather)refreshWeather();requestAnimationFrame(tick);}
+const settingsDetails=document.getElementById("settingsDetails"),settingsOverlay=document.getElementById("settingsOverlay"),settingsBackdrop=document.getElementById("settingsBackdrop"),btnCloseSettings=document.getElementById("btnCloseSettings");
+const tabButtons=Array.from(document.querySelectorAll(".tabBtn")),tabSettings=document.getElementById("tabSettings"),tabGuide=document.getElementById("tabGuide");let settingsCloseTimer=null;const guideTransitionLayer=document.getElementById("guideTransitionLayer");
+function resetGuideToStart(){const scroller=document.getElementById("guidePages");if(scroller)scroller.scrollTo({top:0,behavior:"auto"});const dots=Array.from(document.querySelectorAll("#guideIndicator .guide-dot"));if(dots.length)dots.forEach((d,i)=>d.classList.toggle("is-active",i===0));const pages=Array.from(document.querySelectorAll("#guidePages .guide-page"));if(pages.length)pages.forEach((pg,i)=>pg.classList.toggle("is-current",i===0));}
+function setTab(id){const isSettings=(id==="tabSettings");tabSettings.classList.toggle("hidden",!isSettings);tabGuide.classList.toggle("hidden",isSettings);if(id==="tabGuide")resetGuideToStart();tabButtons.forEach(btn=>{const active=btn.dataset.tab===id;btn.className="tabBtn flex-1 px-3 py-2 rounded-2xl text-sm border "+(active?"border-slate-200 bg-sky-50/60 text-slate-700":"border-slate-200 bg-white text-slate-600 hover:bg-slate-50");});}
+function openSettings(){if(settingsCloseTimer){clearTimeout(settingsCloseTimer);settingsCloseTimer=null;}if(guideTransitionLayer)guideTransitionLayer.classList.remove("is-active");settingsOverlay.classList.remove("hidden");requestAnimationFrame(()=>settingsOverlay.classList.add("is-open"));settingsDetails.open=false;document.documentElement.classList.add("overflow-hidden");document.body.classList.add("overflow-hidden");setTab("tabSettings");}
+function closeSettings(afterClose,durationMs=560){settingsOverlay.classList.remove("is-open");const finalize=()=>{settingsOverlay.classList.add("hidden");document.documentElement.classList.remove("overflow-hidden");document.body.classList.remove("overflow-hidden");if(typeof afterClose==="function")afterClose();};settingsCloseTimer=setTimeout(finalize,durationMs);}
+settingsDetails.addEventListener("toggle",()=>{if(settingsDetails.open)openSettings();}); btnCloseSettings.addEventListener("click",closeSettings); settingsBackdrop.addEventListener("click",closeSettings); document.addEventListener("keydown",(e)=>{if(e.key==="Escape")closeSettings();}); tabButtons.forEach(btn=>btn.addEventListener("click",()=>setTab(btn.dataset.tab)));
+document.getElementById("btnToggle").addEventListener("click",async()=>{if(!isRunning)await start();else stop();}); document.getElementById("btnRefresh").addEventListener("click",()=>refreshWeather()); ["seasonSel","timeSel","weatherSel"].forEach(id=>{document.getElementById(id).addEventListener("change",()=>{applyParams();if(isRunning&&!isRebuildingLoops)rebuildLoops();applyParams();});});
+function bindMixSliders(){const b=document.getElementById("birdMix"),w=document.getElementById("windMix"),wa=document.getElementById("waterMix");if(!b||!w||!wa)return;b.addEventListener("input",()=>{mixState.bird=clamp(parseInt(b.value,10)||0,0,100);onMixChange();});w.addEventListener("input",()=>{mixState.wind=clamp(parseInt(w.value,10)||0,0,100);onMixChange();});wa.addEventListener("input",()=>{mixState.water=clamp(parseInt(wa.value,10)||0,0,100);onMixChange();});}
+function bindUiNuance(){const ids=["nuanceSparkle","nuanceSpeed","nuanceBright","nuanceReverb"];ids.forEach(id=>{const el=document.getElementById(id);const chip=document.getElementById(id.replace("nuance","nuance")+"Mode");if(!el||!chip)return;el.addEventListener("input",()=>{const v=parseInt(el.value,10)||0;chip.textContent=(v===50)?"Auto":"Manual";chip.className="text-[10px] px-2 py-0.5 rounded-full border "+((v===50)?"border-slate-200 text-slate-500":"border-slate-900 text-slate-800 bg-slate-50");});});const btn=document.getElementById("btnAllAuto");if(btn){btn.addEventListener("click",()=>{["seasonSel","timeSel","weatherSel"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="auto";});ids.forEach(id=>{const el=document.getElementById(id);if(el)el.value="50";const chip=document.getElementById(id+"Mode");if(chip){chip.textContent="Auto";chip.className="text-[10px] px-2 py-0.5 rounded-full border border-slate-200";}});mixState.bird=50;mixState.wind=50;mixState.water=50;syncMixUI();saveMix();applyParams();if(isRunning)rebuildLoops();});}}
+function initGuideReveal(){const scroller=document.getElementById("guidePages");const dots=Array.from(document.querySelectorAll("#guideIndicator .guide-dot"));if(!scroller||!dots.length)return;const pages=Array.from(scroller.querySelectorAll(".guide-page"));let returningTop=false;let activeIndex=0;let touchStartY=null;const reduced=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;const isGuideOpen=()=>!tabGuide.classList.contains("hidden")&&!settingsOverlay.classList.contains("hidden");const isAtGuideEnd=()=>Math.abs((scroller.scrollTop+scroller.clientHeight)-scroller.scrollHeight)<2;const goTopFromGuide=()=>{if(returningTop||!isGuideOpen())return;returningTop=true;scroller.scrollTo({top:0,behavior:"auto"});const finalize=()=>{if(guideTransitionLayer)guideTransitionLayer.classList.remove("is-active");settingsOverlay.classList.remove("guide-overlay-fade");setTab("tabSettings");window.scrollTo({top:0,behavior:"smooth"});returningTop=false;};if(reduced){closeSettings(finalize,560);return;}settingsOverlay.classList.add("guide-overlay-fade");if(guideTransitionLayer){guideTransitionLayer.classList.add("is-active");setTimeout(()=>closeSettings(finalize,2200),20);}else{closeSettings(finalize,2200);}};const handleGuideNext=(action,source="user")=>{if(source!=="user")return;if(returningTop||!isGuideOpen())return;if(activeIndex===pages.length-1&&action==="next"){if(!isAtGuideEnd())return;goTopFromGuide();return;}const nextIdx=Math.min(activeIndex+1,pages.length-1);pages[nextIdx].scrollIntoView({behavior:reduced?"auto":"smooth",block:"start"});};const setActive=(idx)=>{activeIndex=idx;dots.forEach((d,i)=>d.classList.toggle("is-active",i===idx));pages.forEach((p,i)=>p.classList.toggle("is-current",i===idx));};scroller.addEventListener("wheel",(e)=>{if(e.deltaY>0&&activeIndex===pages.length-1)handleGuideNext("next","user");},{passive:true});scroller.addEventListener("touchstart",(e)=>{touchStartY=e.touches&&e.touches[0]?e.touches[0].clientY:null;},{passive:true});scroller.addEventListener("touchend",(e)=>{const endY=e.changedTouches&&e.changedTouches[0]?e.changedTouches[0].clientY:null;if(touchStartY!==null&&endY!==null&&(touchStartY-endY)>18&&activeIndex===pages.length-1)handleGuideNext("next","user");touchStartY=null;},{passive:true});document.addEventListener("keydown",(e)=>{if(!isGuideOpen())return;if(["ArrowDown","PageDown","Space"].includes(e.code)||["ArrowDown","PageDown"," "].includes(e.key)){e.preventDefault();handleGuideNext("next","user");}});const hasIO=("IntersectionObserver" in window);if(!hasIO){setActive(0);return;}const io=new IntersectionObserver((entries)=>{entries.forEach(entry=>{if(entry.isIntersecting){const idx=pages.indexOf(entry.target);if(idx>=0)setActive(idx);}});},{root:scroller,threshold:0.65});pages.forEach(p=>io.observe(p));if(reduced){setActive(0);}}
+loadMix();syncMixUI();setButtonState();applyWhiteByTime(autoTimeBlock());refreshWeather();tick();bindMixSliders();bindUiNuance();initGuideReveal();
+</script>
+</body>
+</html>
